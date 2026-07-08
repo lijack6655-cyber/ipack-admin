@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { LoginRequest, AuthResponse } from '@/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key-change-in-production';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-key-change-in-production';
 
 // 模拟用户数据库（Phase 1 使用）
 const MOCK_USERS: Record<string, any> = {
@@ -81,14 +82,14 @@ export default async function handler(
       { expiresIn: '1h' }
     );
 
-    const refreshToken = jwt.sign(
-      {
-        userId: user.id,
-        type: 'refresh',
-      },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+     const refreshToken = jwt.sign(
+       {
+         userId: user.id,
+         type: 'refresh',
+       },
+       JWT_REFRESH_SECRET,
+       { expiresIn: '7d' }
+     );
 
     // 返回成功响应
     res.status(200).json({
