@@ -12,7 +12,7 @@ interface LoginFormData {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isLoading, error, isAuthenticated } = useAuthStore();
+  const { login, isLoading, error, isAuthenticated, isInitialized, initializeFromStorage } = useAuthStore();
   const { register, handleSubmit, formState: { errors }, watch } = useForm<LoginFormData>({
     defaultValues: {
       email: 'admin@ipackauto.com',
@@ -25,10 +25,14 @@ export default function LoginPage() {
   const password = watch('password');
 
   useEffect(() => {
-    if (isAuthenticated) {
+    initializeFromStorage();
+  }, [initializeFromStorage]);
+
+  useEffect(() => {
+    if (isInitialized && isAuthenticated) {
       router.push('/dashboard');
     }
-  }, [isAuthenticated, router]);
+  }, [isInitialized, isAuthenticated, router]);
 
   const onSubmit = async (data: LoginFormData) => {
     try {

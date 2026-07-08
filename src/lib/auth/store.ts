@@ -7,6 +7,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  isInitialized: boolean;
 
   // Actions
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
@@ -15,6 +16,7 @@ interface AuthState {
   setTokens: (tokens: AuthToken | null) => void;
   setError: (error: string | null) => void;
   clearAuth: () => void;
+  initializeFromStorage: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -23,6 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   isLoading: false,
   error: null,
+  isInitialized: false,
 
   login: async (email: string, password: string, rememberMe = false) => {
     set({ isLoading: true, error: null });
@@ -38,21 +41,19 @@ export const useAuthStore = create<AuthState>((set) => ({
         throw new Error(errorData.message || '登录失败');
       }
 
-      const data = await response.json();
-      if (data.success && data.data) {
-        set({
-          user: data.data.user,
-          tokens: data.data.tokens,
-          isAuthenticated: true,
-          error: null,
-        });
+       const data = await response.json();
+       if (data.success && data.data) {
+         set({
+           user: data.data.user,
+           tokens: data.data.tokens,
+           isAuthenticated: true,
+           error: null,
+         });
 
-        // 保存到 localStorage
-        if (rememberMe) {
-          localStorage.setItem('auth_tokens', JSON.stringify(data.data.tokens));
-          localStorage.setItem('auth_user', JSON.stringify(data.data.user));
-        }
-      }
+         // 总是保存到 localStorage（保持会话）
+         localStorage.setItem('auth_tokens', JSON.stringify(data.data.tokens));
+         localStorage.setItem('auth_user', JSON.stringify(data.data.user));
+       }
     } catch (error: any) {
       const errorMessage = error.message || '登录失败，请重试';
       set({ error: errorMessage, isLoading: false });
@@ -104,5 +105,34 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
     localStorage.removeItem('auth_tokens');
     localStorage.removeItem('auth_user');
+  },
+
+  initializeFromStorage: () => {
+    if (typeof window === 'undefined') {
+      set({ isInitialized: true });
+      return;
+    }
+
+    try {
+      const storedTokens = localStorage.getItem('auth_tokens');
+      const storedUser = localStorage.getItem('auth_user');
+
+      if (storedTokens && storedUser) {
+        const tokens = JSON.parse(storedTokens) as AuthToken;
+        const user = JSON.parse(storedUser) as User;
+        set({
+          tokens,
+          user,
+          isAuthenticated: true,
+          error: null,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to restore auth from storage:', error);
+      localStorage.removeItem('auth_tokens');
+      localStorage.removeItem('auth_user');
+    } finally {
+      set({ isInitialized: true });
+    }
   },
 }));

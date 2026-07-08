@@ -6,13 +6,17 @@ import { LogOut, Users, Package, FileText, BarChart3 } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, isInitialized, initializeFromStorage } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
+    initializeFromStorage();
+  }, [initializeFromStorage]);
+
+  useEffect(() => {
+    if (isInitialized && (!isAuthenticated || !user)) {
       router.push('/login');
     }
-  }, [isAuthenticated, user, router]);
+  }, [isInitialized, isAuthenticated, user, router]);
 
   const handleLogout = async () => {
     await logout();
