@@ -8,42 +8,27 @@ const protectedRoutes = ['/dashboard', '/admin'];
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated, isInitialized, initializeFromStorage } = useAuthStore();
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    const storedUser = localStorage.getItem('user');
+    // 首次初始化时从 localStorage 恢复认证状态
+    initializeFromStorage();
+  }, [initializeFromStorage]);
 
-    if (token && storedUser) {
-      try {
-        useAuthStore.setState({
-          user: JSON.parse(storedUser),
-          isAuthenticated: true,
-          tokens: {
-            accessToken: token,
-            refreshToken: localStorage.getItem('refreshToken') || '',
-            expiresIn: 3600,
-          },
-        });
-      } catch (error) {
-        console.error('Failed to restore auth state:', error);
-        localStorage.clear();
-      }
-    }
+  useEffect(() => {
+    if (!isInitialized) return;
 
     // 路由守卫：保护需要认证的页面
     const isProtectedRoute = protectedRoutes.some((route) =>
       router.pathname.startsWith(route)
     );
 
-    if (isProtectedRoute && !token) {
+    if (isProtectedRoute && !isAuthenticated) {
       router.push('/login');
-    }
-
-    if (router.pathname === '/login' && token) {
+    } else if (router.pathname === '/login' && isAuthenticated) {
       router.push('/dashboard');
     }
-  }, [router]);
+  }, [isInitialized, isAuthenticated, router.pathname, router]);
 
   return <Component {...pageProps} />;
 }
