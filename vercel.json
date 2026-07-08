@@ -4,6 +4,7 @@
   "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_API_URL": "@next_public_api_url",
-    "JWT_SECRET": "@jwt_secret"
+    "JWT_SECRET": "@jwt_secret",
+    "JWT_REFRESH_SECRET": "@jwt_refresh_secret"
   }
 }
