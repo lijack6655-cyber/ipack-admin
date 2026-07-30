@@ -43,7 +43,10 @@ export default function DashboardPage() {
           })}
         </p>
       </div>
-
+            {/* 演示数据提示 */}
+      <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+        以下统计数字与最近活动均为演示数据，非真实经营指标。
+      </div>
       {/* 统计卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatsCard
