@@ -15,8 +15,6 @@ export default function LoginPage() {
   const { login, isLoading, error, isAuthenticated, isInitialized, initializeFromStorage } = useAuthStore();
   const { register, handleSubmit, formState: { errors }, watch } = useForm<LoginFormData>({
     defaultValues: {
-      email: 'admin@ipackauto.com',
-      password: 'demo123',
       rememberMe: false,
     },
   });
@@ -182,7 +180,7 @@ export default function LoginPage() {
         {/* 演示提示 */}
         <div className="mt-4 p-4 bg-blue-50 rounded-lg text-center">
           <p className="text-xs text-slate-700">
-            <strong>演示账号：</strong> admin@ipackauto.com / demo123
+            <strong>当前为演示环境，请联系管理员申请账号</strong>
           </p>
         </div>
       </div>
