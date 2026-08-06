@@ -4,6 +4,7 @@ export enum RoleType {
   SUPER_ADMIN = 'SUPER_ADMIN',
   PRODUCT_MANAGER = 'PRODUCT_MANAGER',
   EDITOR = 'EDITOR',
+  SALES = 'SALES',
   SOCIAL_ADMIN = 'SOCIAL_ADMIN',
   VIEWER = 'VIEWER',
 }
@@ -85,8 +86,8 @@ export interface AuditLog {
   action: string;
   resourceType: 'PRODUCT' | 'ARTICLE' | 'VIDEO' | 'USER' | 'ROLE';
   resourceId: string;
-  oldValue?: Record<string, any>;
-  newValue?: Record<string, any>;
+  oldValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
   ipAddress: string;
   status: 'SUCCESS' | 'FAILURE';
   errorMessage?: string;

@@ -3,6 +3,8 @@ import { useRouter } from 'next/router';
 import { useAuthStore } from '@/lib/auth/store';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { withAuth } from '@/components/auth/withAuth';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { Json } from '@/types/database';
 import { Save, X, Upload } from 'lucide-react';
 
 const CATEGORIES = [
@@ -24,6 +26,7 @@ function NewProductPage() {
   const { user, logout } = useAuthStore();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -45,11 +48,76 @@ function NewProductPage() {
   const set = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSave = async (status: 'draft' | 'active') => {
+    setSaveError(null);
+    if (!form.name.trim()) {
+      setSaveError('产品名称必填');
+      return;
+    }
+    if (status === 'active') {
+      setSaveError('新产品尚无前台详情页，只能先保存草稿；生成并验证详情页后才能发布。');
+      return;
+    }
+
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => router.push('/admin/products'), 1000);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      let categoryId: string | null = null;
+      if (form.category) {
+        const { data } = await supabase.from('categories').select('id').eq('name', form.category).maybeSingle();
+        categoryId = data?.id || null;
+      }
+
+      const specifications = form.specifications
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .reduce<Record<string, string>>((result, line) => {
+          const [key, ...rest] = line.split(':');
+          if (key && rest.length) result[key.trim()] = rest.join(':').trim();
+          return result;
+        }, {});
+      const slugBase = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 70) || 'product';
+      const slug = `${slugBase}-${Date.now()}`;
+
+      const { data, error } = await supabase.from('products').insert({
+        title: form.name.trim(),
+        display_title: form.name.trim(),
+        slug,
+        sku: form.sku.trim() || null,
+        category_id: categoryId,
+        category_name: form.category || null,
+        model: form.carModel || null,
+        years: form.yearRange.trim() || null,
+        price_text: form.price ? `$${form.price}` : null,
+        stock_quantity: form.stock ? Number(form.stock) : null,
+        weight_kg: form.weight ? Number(form.weight) : null,
+        description: form.description.trim() || null,
+        specifications: Object.keys(specifications).length ? specifications as Json : null,
+        status: 'draft',
+        source_type: 'admin_manual',
+        verification_status: 'imported_unverified',
+        created_by: user?.id || null,
+        updated_by: user?.id || null,
+      }).select('id').single();
+      if (error) throw error;
+
+      if (user && data) {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action: 'product_draft_created',
+          resource_type: 'PRODUCT',
+          resource_id: data.id,
+          new_value: { title: form.name.trim(), slug, status: 'draft' },
+        });
+      }
+
+      setSaved(true);
+      setTimeout(() => router.push('/admin/products'), 800);
+    } catch (error: unknown) {
+      setSaveError(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!user) return null;
@@ -85,6 +153,8 @@ function NewProductPage() {
           </button>
         </div>
       </div>
+
+      {saveError && <div className="mb-4 px-4 py-3 rounded-lg border border-amber-200 bg-amber-50 text-sm text-amber-800">{saveError}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 左侧主信息 */}

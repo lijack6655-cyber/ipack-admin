@@ -6,27 +6,15 @@ import { withAuth } from '@/components/auth/withAuth';
 import { Users, Eye, MousePointerClick, TrendingUp } from 'lucide-react';
 
 const SUMMARY = [
-  { icon: Users, label: '独立访客', value: '2,438', trend: '+8.2% 环比', color: 'blue' },
-  { icon: Eye, label: '页面浏览量', value: '9,164', trend: '+5.6% 环比', color: 'green' },
-  { icon: MousePointerClick, label: '询盘表单提交', value: '37', trend: '+3 本周', color: 'purple' },
-  { icon: TrendingUp, label: '平均停留时长', value: '2分14秒', trend: '+11s 环比', color: 'orange' },
+  { icon: Users, label: '独立访客', value: '待接入', trend: '等待 GA4', color: 'blue' },
+  { icon: Eye, label: '页面浏览量', value: '待接入', trend: '等待 GA4', color: 'green' },
+  { icon: MousePointerClick, label: '询盘表单提交', value: '待接入', trend: '等待 GA4', color: 'purple' },
+  { icon: TrendingUp, label: '平均停留时长', value: '待接入', trend: '等待 GA4', color: 'orange' },
 ] as const;
 
-const TOP_PAGES = [
-  { path: '/', views: 3120, share: 34 },
-  { path: '/products/headlights-taillights', views: 1580, share: 17 },
-  { path: '/products/braking-system', views: 1204, share: 13 },
-  { path: '/contact.html', views: 986, share: 11 },
-  { path: '/blog/led-headlight-installation-guide', views: 742, share: 8 },
-];
+const TOP_PAGES: { path: string; views: number; share: number }[] = [];
 
-const TRAFFIC_SOURCES = [
-  { source: '自然搜索 (Organic Search)', pct: 46, color: 'bg-blue-500' },
-  { source: '直接访问 (Direct)', pct: 28, color: 'bg-green-500' },
-  { source: 'B2B 平台引荐 (Alibaba/1688)', pct: 15, color: 'bg-purple-500' },
-  { source: '社交媒体 (Social)', pct: 7, color: 'bg-orange-500' },
-  { source: '其他', pct: 4, color: 'bg-slate-400' },
-];
+const TRAFFIC_SOURCES: { source: string; pct: number; color: string }[] = [];
 
 function colorClasses(color: string) {
   const map: Record<string, string> = {
@@ -57,7 +45,7 @@ function TrafficAnalyticsPage() {
       </div>
 
       <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-        以下数据为演示数据，用于展示流量分析看板的交互形态；接入 Google Analytics 4 后将替换为真实数据。
+        Google Analytics 4 尚未接入，所有指标均显示“待接入”，不再展示演示数字。
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
