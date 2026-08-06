@@ -4,7 +4,7 @@ import { useRouter } from 'next/router';
 import { User } from '@/types';
 import {
   Menu, X, LogOut, Users, Package, FileText,
-  Share2, BarChart3, Settings, Home, ChevronDown, ChevronRight,
+  Share2, BarChart3, Settings, Home, ChevronDown, ChevronRight, Inbox,
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -19,6 +19,12 @@ const menuItems = [
     label: '仪表板',
     icon: Home,
     href: '/dashboard',
+  },
+  {
+    key: 'inquiries',
+    label: '询盘管理',
+    icon: Inbox,
+    href: '/admin/inquiries',
   },
   {
     key: 'product',

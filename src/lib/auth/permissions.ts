@@ -159,6 +159,13 @@ export const ROLES: Record<RoleType, Role> = {
     ],
     isCustom: false,
   },
+  [RoleType.SALES]: {
+    id: 'role_sales',
+    name: RoleType.SALES,
+    description: '询盘与客户跟进权限',
+    permissions: [PERMISSIONS['ANALYTICS_READ']],
+    isCustom: false,
+  },
   [RoleType.SOCIAL_ADMIN]: {
     id: 'role_social_admin',
     name: RoleType.SOCIAL_ADMIN,
