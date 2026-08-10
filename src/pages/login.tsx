@@ -13,15 +13,13 @@ interface LoginFormData {
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, error, isAuthenticated, isInitialized, initializeFromStorage } = useAuthStore();
-  const { register, handleSubmit, formState: { errors }, watch } = useForm<LoginFormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     defaultValues: {
       rememberMe: false,
     },
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const password = watch('password');
-
   useEffect(() => {
     initializeFromStorage();
   }, [initializeFromStorage]);
@@ -73,7 +71,7 @@ export default function LoginPage() {
               </label>
               <input
                 type="email"
-                placeholder="admin@ipackauto.com"
+                placeholder="name@company.com"
                 className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
                   errors.email
                     ? 'border-red-300 focus:ring-red-500'
@@ -108,7 +106,7 @@ export default function LoginPage() {
                   }`}
                   {...register('password', {
                     required: '密码必填',
-                    minLength: { value: 6, message: '密码至少6位' },
+                    minLength: { value: 12, message: '密码至少12位' },
                   })}
                 />
                 <button
@@ -164,10 +162,7 @@ export default function LoginPage() {
               忘记密码？
             </button>
             <p className="text-slate-600">
-              还没有账号？{' '}
-              <button className="text-blue-600 hover:text-blue-700 font-medium">
-                联系管理员申请
-              </button>
+              还没有账号？请联系超级管理员发送邀请
             </p>
           </div>
         </div>
@@ -180,7 +175,7 @@ export default function LoginPage() {
         {/* 演示提示 */}
         <div className="mt-4 p-4 bg-blue-50 rounded-lg text-center">
           <p className="text-xs text-slate-700">
-            <strong>当前为演示环境，请联系管理员申请账号</strong>
+            <strong>使用超级管理员邀请的团队账号登录，无需 Vercel 账号</strong>
           </p>
         </div>
       </div>

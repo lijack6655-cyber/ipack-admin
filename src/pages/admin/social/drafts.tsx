@@ -14,12 +14,7 @@ interface Draft {
   author: string;
 }
 
-const MOCK_DRAFTS: Draft[] = [
-  { id: '1', title: '新款 LED 大灯上市文案', excerpt: '面向 Toyota Prius 车主的产品发布文案初稿...', platforms: ['Instagram', 'Facebook'], updatedAt: '2026-07-28 15:20', author: '编辑B' },
-  { id: '2', title: 'Suzuki Swift 悬挂系统安装小贴士', excerpt: '分步讲解安装要点，适合搭配短视频发布...', platforms: ['YouTube'], updatedAt: '2026-07-27 10:05', author: '王工' },
-  { id: '3', title: '海外展会参展预告', excerpt: '介绍即将参加的汽配展会及展位信息...', platforms: ['LinkedIn', 'X (Twitter)'], updatedAt: '2026-07-25 09:40', author: '管理员' },
-  { id: '4', title: '客户案例：中东经销商合作故事', excerpt: '讲述与中东经销商长期合作的案例...', platforms: ['LinkedIn'], updatedAt: '2026-07-22 17:10', author: '编辑A' },
-];
+const MOCK_DRAFTS: Draft[] = [];
 
 function SocialDraftsPage() {
   const router = useRouter();
@@ -47,7 +42,7 @@ function SocialDraftsPage() {
       </div>
 
       <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-        当前草稿为演示数据，用于展示草稿箱的交互形态；尚未接入真实发布渠道。
+        社媒内容库尚未接入，当前无真实草稿；不展示演示内容。
       </div>
 
       <div className="space-y-3">

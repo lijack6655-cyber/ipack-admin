@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuthStore } from '@/lib/auth/store';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { withAuth } from '@/components/auth/withAuth';
-import { Instagram, Facebook, Linkedin, Youtube, Twitter, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Camera, MessagesSquare, BriefcaseBusiness, Video, MessageCircle, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
 type Platform = 'INSTAGRAM' | 'FACEBOOK' | 'LINKEDIN' | 'YOUTUBE' | 'TWITTER';
 type PostStatus = 'SCHEDULED' | 'PUBLISHED' | 'FAILED';
@@ -17,24 +17,17 @@ interface ScheduledPost {
   status: PostStatus;
 }
 
-const MOCK_POSTS: ScheduledPost[] = [
-  { id: '1', date: '2026-08-01', time: '09:30', platform: 'INSTAGRAM', title: 'Toyota Prius 大灯总成上新', status: 'SCHEDULED' },
-  { id: '2', date: '2026-08-02', time: '14:00', platform: 'FACEBOOK', title: 'Suzuki Swift 悬挂系统安装教程', status: 'SCHEDULED' },
-  { id: '3', date: '2026-08-03', time: '10:15', platform: 'LINKEDIN', title: 'I-PACK 获得 CE/RoHS 认证公告', status: 'PUBLISHED' },
-  { id: '4', date: '2026-08-04', time: '16:45', platform: 'YOUTUBE', title: '刹车片更换实拍视频', status: 'SCHEDULED' },
-  { id: '5', date: '2026-08-05', time: '11:00', platform: 'TWITTER', title: '新客户折扣活动预告', status: 'FAILED' },
-  { id: '6', date: '2026-08-06', time: '09:00', platform: 'INSTAGRAM', title: '侧后视镜产品细节展示', status: 'SCHEDULED' },
-];
+const MOCK_POSTS: ScheduledPost[] = [];
 
-const PLATFORM_INFO: Record<Platform, { label: string; icon: any; cls: string }> = {
-  INSTAGRAM: { label: 'Instagram', icon: Instagram, cls: 'bg-pink-50 text-pink-600' },
-  FACEBOOK: { label: 'Facebook', icon: Facebook, cls: 'bg-blue-50 text-blue-600' },
-  LINKEDIN: { label: 'LinkedIn', icon: Linkedin, cls: 'bg-sky-50 text-sky-700' },
-  YOUTUBE: { label: 'YouTube', icon: Youtube, cls: 'bg-red-50 text-red-600' },
-  TWITTER: { label: 'X (Twitter)', icon: Twitter, cls: 'bg-slate-100 text-slate-700' },
+const PLATFORM_INFO: Record<Platform, { label: string; icon: React.ElementType; cls: string }> = {
+  INSTAGRAM: { label: 'Instagram', icon: Camera, cls: 'bg-pink-50 text-pink-600' },
+  FACEBOOK: { label: 'Facebook', icon: MessagesSquare, cls: 'bg-blue-50 text-blue-600' },
+  LINKEDIN: { label: 'LinkedIn', icon: BriefcaseBusiness, cls: 'bg-sky-50 text-sky-700' },
+  YOUTUBE: { label: 'YouTube', icon: Video, cls: 'bg-red-50 text-red-600' },
+  TWITTER: { label: 'X (Twitter)', icon: MessageCircle, cls: 'bg-slate-100 text-slate-700' },
 };
 
-const STATUS_INFO: Record<PostStatus, { label: string; cls: string; icon: any }> = {
+const STATUS_INFO: Record<PostStatus, { label: string; cls: string; icon: React.ElementType }> = {
   SCHEDULED: { label: '待发布', cls: 'bg-blue-50 text-blue-700', icon: Clock },
   PUBLISHED: { label: '已发布', cls: 'bg-green-50 text-green-700', icon: CheckCircle2 },
   FAILED: { label: '发布失败', cls: 'bg-red-50 text-red-600', icon: AlertCircle },
@@ -62,7 +55,7 @@ function SocialCalendarPage() {
       </div>
 
       <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-        当前列表为演示数据，用于展示发布日历的交互形态；尚未接入真实社媒发布渠道。
+        社媒发布渠道尚未接入，当前无真实排期数据；待接入后再启用发布操作。
       </div>
 
       <div className="space-y-4">

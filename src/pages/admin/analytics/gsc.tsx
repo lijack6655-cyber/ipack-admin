@@ -6,23 +6,17 @@ import { withAuth } from '@/components/auth/withAuth';
 import { CheckCircle2, AlertTriangle, XCircle, Search } from 'lucide-react';
 
 const INDEX_SUMMARY = [
-  { label: '已收录', value: 23, icon: CheckCircle2, cls: 'bg-green-50 text-green-700 border-green-200' },
-  { label: '未收录', value: 169, icon: XCircle, cls: 'bg-red-50 text-red-600 border-red-200' },
-  { label: '已发现未收录', value: 156, icon: AlertTriangle, cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  { label: '已收录', value: '待接入', icon: CheckCircle2, cls: 'bg-green-50 text-green-700 border-green-200' },
+  { label: '未收录', value: '待接入', icon: XCircle, cls: 'bg-red-50 text-red-600 border-red-200' },
+  { label: '已发现未收录', value: '待接入', icon: AlertTriangle, cls: 'bg-amber-50 text-amber-700 border-amber-200' },
 ];
 
-const TOP_QUERIES = [
-  { query: 'toyota prius headlight', clicks: 42, impressions: 980, ctr: '4.3%', position: 8.2 },
-  { query: 'suzuki swift suspension parts', clicks: 31, impressions: 745, ctr: '4.2%', position: 9.6 },
-  { query: 'auto parts supplier guangzhou', clicks: 27, impressions: 1120, ctr: '2.4%', position: 14.1 },
-  { query: 'ipack auto parts', clicks: 19, impressions: 260, ctr: '7.3%', position: 3.5 },
-  { query: 'led taillight cover replacement', clicks: 15, impressions: 512, ctr: '2.9%', position: 12.7 },
-];
+const TOP_QUERIES: { query: string; clicks: number; impressions: number; ctr: string; position: number }[] = [];
 
 function GscDataPage() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const [asOf] = useState('2026-07-13');
+  const [asOf] = useState('待接入');
 
   const handleLogout = async () => { await logout(); router.push('/login'); };
 
@@ -38,7 +32,7 @@ function GscDataPage() {
       </div>
 
       <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-        以下数据为交接记录中的历史快照（截至 {asOf}），非实时数据；后续将接入 GSC API 自动刷新。
+        当前未读取 Google Search Console 实时数据（状态：{asOf}），不展示历史演示数字。
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -82,6 +76,7 @@ function GscDataPage() {
             ))}
           </tbody>
         </table>
+        {TOP_QUERIES.length === 0 && <div className="py-10 text-center text-sm text-slate-400">搜索词数据待接入</div>}
       </div>
     </AdminLayout>
   );

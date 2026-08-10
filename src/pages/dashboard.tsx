@@ -1,203 +1,70 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useAuthStore } from '@/lib/auth/store';
+import { BarChart3, FileText, Inbox, Package } from 'lucide-react';
 import AdminLayout from '@/components/layout/AdminLayout';
-import { LogOut, Users, Package, FileText, BarChart3 } from 'lucide-react';
+import { useAuthStore } from '@/lib/auth/store';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+
+type Counts = { products: number | null; articles: number | null; inquiries: number | null };
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isAuthenticated, logout, isInitialized, initializeFromStorage } = useAuthStore();
+  const [counts, setCounts] = useState<Counts>({ products: null, articles: null, inquiries: null });
+  const [error, setError] = useState('');
 
+  useEffect(() => { initializeFromStorage(); }, [initializeFromStorage]);
   useEffect(() => {
-    initializeFromStorage();
-  }, [initializeFromStorage]);
-
-  useEffect(() => {
-    if (isInitialized && (!isAuthenticated || !user)) {
-      router.push('/login');
-    }
+    if (isInitialized && (!isAuthenticated || !user)) router.push('/login');
   }, [isInitialized, isAuthenticated, user, router]);
+  useEffect(() => {
+    if (!user) return;
+    const client = getSupabaseBrowserClient();
+    Promise.all([
+      client.from('products').select('*', { count: 'exact', head: true }),
+      client.from('articles').select('*', { count: 'exact', head: true }),
+      client.from('inquiries').select('*', { count: 'exact', head: true }),
+    ]).then(([products, articles, inquiries]) => {
+      const firstError = products.error || articles.error || inquiries.error;
+      if (firstError) setError(firstError.message);
+      setCounts({ products: products.count, articles: articles.count, inquiries: inquiries.count });
+    });
+  }, [user]);
 
-  const handleLogout = async () => {
-    await logout();
-    router.push('/login');
-  };
-
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
+  const handleLogout = async () => { await logout(); router.push('/login'); };
+  const display = (value: number | null) => value === null ? '待接入' : String(value);
 
   return (
     <AdminLayout user={user} onLogout={handleLogout}>
-      {/* 欢迎部分 */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">
-          欢迎回来，{user.firstName || user.email}
-        </h1>
-        <p className="text-slate-600">
-          今天是 {new Date().toLocaleDateString('zh-CN', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </p>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">欢迎回来，{user.firstName || user.email}</h1>
+        <p className="text-slate-600">当前仪表板只展示数据库真实统计；未接入的数据明确标记为“待接入”。</p>
       </div>
-            {/* 演示数据提示 */}
-      <div className="mb-6 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-        以下统计数字与最近活动均为演示数据，非真实经营指标。
-      </div>
-      {/* 统计卡片 */}
+      {error && <div className="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">部分统计暂不可读：{error}</div>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <StatsCard
-          icon={Package}
-          label="产品总数"
-          value="127"
-          trend="+12 本周"
-          color="blue"
-        />
-        <StatsCard
-          icon={FileText}
-          label="文章总数"
-          value="47"
-          trend="+3 本周"
-          color="green"
-        />
-        <StatsCard
-          icon={Users}
-          label="团队成员"
-          value="5"
-          trend="1 新成员"
-          color="purple"
-        />
-        <StatsCard
-          icon={BarChart3}
-          label="网站访问"
-          value="2.4K"
-          trend="+8% 本周"
-          color="orange"
-        />
+        <StatsCard icon={Package} label="产品总数" value={display(counts.products)} note="来自 Supabase products" />
+        <StatsCard icon={FileText} label="文章总数" value={display(counts.articles)} note="来自 Supabase articles" />
+        <StatsCard icon={Inbox} label="询盘总数" value={display(counts.inquiries)} note="来自 Supabase inquiries" />
+        <StatsCard icon={BarChart3} label="网站访问" value="待接入" note="等待 GA4 数据接口" />
       </div>
-
-      {/* 快速操作 */}
-      <div className="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 className="text-xl font-bold text-slate-900 mb-4">快速操作</h2>
+      <div className="bg-white rounded-lg border border-slate-200 p-6">
+        <h2 className="text-xl font-bold text-slate-900 mb-4">核心操作</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <QuickActionButton href="/admin/products" label="添加产品" />
-          <QuickActionButton href="/admin/content/articles" label="发布文章" />
-          <QuickActionButton href="/admin/accounts" label="管理团队" />
+          <QuickLink href="/admin/products" label="管理产品" />
+          <QuickLink href="/admin/content/articles" label="管理文章" />
+          <QuickLink href="/admin/inquiries" label="查看询盘" />
         </div>
-      </div>
-
-      {/* 最近活动 */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-bold text-slate-900 mb-4">最近活动</h2>
-        <ActivityList />
       </div>
     </AdminLayout>
   );
 }
 
-// 统计卡片组件
-function StatsCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  trend, 
-  color = 'blue' 
-}: {
-  icon: any;
-  label: string;
-  value: string;
-  trend: string;
-  color?: 'blue' | 'green' | 'purple' | 'orange';
-}) {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
-    green: 'bg-green-50 text-green-700 border-green-200',
-    purple: 'bg-purple-50 text-purple-700 border-purple-200',
-    orange: 'bg-orange-50 text-orange-700 border-orange-200',
-  };
-
-  return (
-    <div className={`rounded-lg border p-6 ${colorClasses[color]}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium opacity-75">{label}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
-          <p className="text-xs mt-2 opacity-75">{trend}</p>
-        </div>
-        <Icon className="w-8 h-8 opacity-25" />
-      </div>
-    </div>
-  );
+function StatsCard({ icon: Icon, label, value, note }: { icon: React.ElementType; label: string; value: string; note: string }) {
+  return <div className="rounded-lg border border-slate-200 bg-white p-6"><div className="flex justify-between"><div><p className="text-sm text-slate-500">{label}</p><p className="text-3xl font-bold mt-2 text-slate-900">{value}</p><p className="text-xs mt-2 text-slate-400">{note}</p></div><Icon className="w-8 h-8 text-blue-200" /></div></div>;
 }
 
-// 快速操作按钮
-function QuickActionButton({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={href}
-      className="flex items-center justify-center px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
-    >
-      {label}
-    </a>
-  );
-}
-
-// 活动列表
-function ActivityList() {
-  const activities = [
-    {
-      id: 1,
-      type: '文章发布',
-      description: '发布文章：LED车灯安装指南',
-      time: '2小时前',
-      actor: '李工',
-    },
-    {
-      id: 2,
-      type: '产品编辑',
-      description: '编辑产品：LED车灯 - Toyota Axio',
-      time: '5小时前',
-      actor: '王工',
-    },
-    {
-      id: 3,
-      type: '权限变更',
-      description: '添加新成员：编辑权限',
-      time: '1天前',
-      actor: '管理员',
-    },
-    {
-      id: 4,
-      type: '视频上传',
-      description: '上传视频：产品演示',
-      time: '2天前',
-      actor: '编辑B',
-    },
-  ];
-
-  return (
-    <div className="space-y-4">
-      {activities.map((activity) => (
-        <div
-          key={activity.id}
-          className="flex items-start gap-4 pb-4 border-b border-slate-200 last:border-0"
-        >
-          <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 flex-shrink-0" />
-          <div className="flex-1">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-medium text-slate-900">{activity.type}</p>
-                <p className="text-sm text-slate-600 mt-1">{activity.description}</p>
-              </div>
-              <span className="text-xs text-slate-500">{activity.time}</span>
-            </div>
-            <p className="text-xs text-slate-500 mt-2">by {activity.actor}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+function QuickLink({ href, label }: { href: string; label: string }) {
+  return <Link href={href} className="flex items-center justify-center px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg">{label}</Link>;
 }

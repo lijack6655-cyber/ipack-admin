@@ -4,6 +4,7 @@ import { useAuthStore } from '@/lib/auth/store';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { withAuth } from '@/components/auth/withAuth';
 import { Save, X, Eye } from 'lucide-react';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 
 const ARTICLE_CATEGORIES = ['Installation Guide', 'Product Review', 'Buying Guide', 'Maintenance', 'Industry News'];
 
@@ -12,6 +13,7 @@ function NewArticlePage() {
   const { user, logout } = useAuthStore();
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const [form, setForm] = useState({
     title: '',
@@ -32,10 +34,37 @@ function NewArticlePage() {
     title.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 60);
 
   const handleSave = async (status: 'draft' | 'published') => {
+    setSaveError('');
+    if (!form.title.trim() || !form.slug.trim()) {
+      setSaveError('标题和 URL Slug 为必填项。');
+      return;
+    }
+    if (status === 'published') {
+      setSaveError('新文章尚未生成并校验前台静态页面，只能先保存草稿。');
+      return;
+    }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 800));
+    const client = getSupabaseBrowserClient();
+    const { data, error } = await client.from('articles').insert({
+      title: form.title.trim(),
+      slug: form.slug.trim(),
+      category: form.category || null,
+      excerpt: form.excerpt.trim() || null,
+      content_markdown: form.content.trim() || null,
+      seo_title: form.metaTitle.trim() || null,
+      seo_description: form.metaDescription.trim() || null,
+      status: 'draft',
+      source_type: 'admin_created',
+      verification_status: 'imported_unverified',
+      created_by: user?.id || null,
+      updated_by: user?.id || null,
+    }).select('id').single();
+    if (!error && data && user) {
+      await client.from('audit_logs').insert({ user_id: user.id, action: 'create_draft', resource_type: 'article', resource_id: data.id, new_value: { title: form.title, slug: form.slug } });
+    }
     setSaving(false);
-    router.push('/admin/content/articles');
+    if (error) setSaveError(error.message);
+    else router.push('/admin/content/articles');
   };
 
   if (!user) return null;
@@ -71,6 +100,7 @@ function NewArticlePage() {
           </button>
         </div>
       </div>
+      {saveError && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{saveError}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 主编辑区 */}
