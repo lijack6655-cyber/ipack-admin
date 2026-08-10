@@ -62,6 +62,18 @@ async function loadProfile(userId: string): Promise<User> {
   return profileToUser(data);
 }
 
+function getLoginErrorMessage(error: { code?: string; message?: string } | null): string {
+  if (
+    error?.code === 'invalid_credentials' ||
+    error?.code === 'email_not_confirmed' ||
+    error?.message?.toLowerCase().includes('invalid login credentials')
+  ) {
+    return '邮箱或密码不正确，或账号尚未完成邀请激活。请检查邀请邮件，或联系超级管理员重新发送邀请';
+  }
+
+  return '登录服务暂时不可用，请稍后重试';
+}
+
 let initializationPromise: Promise<void> | null = null;
 let listenerRegistered = false;
 
@@ -80,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         email: email.trim().toLowerCase(),
         password,
       });
-      if (error || !data.user) throw new Error(error?.message || '登录失败');
+      if (error || !data.user) throw new Error(getLoginErrorMessage(error));
 
       const user = await loadProfile(data.user.id);
       await supabase
