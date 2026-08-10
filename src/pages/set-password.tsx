@@ -18,7 +18,7 @@ export default function SetPasswordPage() {
 
     supabase.auth.getSession().then(({ data, error: sessionError }) => {
       if (!mounted) return;
-      if (sessionError) setError('邀请链接无效或已过期，请联系管理员重新发送');
+      if (sessionError || !data.session) setError('邀请或重置链接无效或已过期，请重新发送');
       setSessionReady(Boolean(data.session));
     });
 
