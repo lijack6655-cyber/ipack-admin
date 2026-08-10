@@ -106,7 +106,7 @@ export default function LoginPage() {
                   }`}
                   {...register('password', {
                     required: '密码必填',
-                    minLength: { value: 6, message: '密码至少6位' },
+                    minLength: { value: 12, message: '密码至少12位' },
                   })}
                 />
                 <button
@@ -162,10 +162,7 @@ export default function LoginPage() {
               忘记密码？
             </button>
             <p className="text-slate-600">
-              还没有账号？{' '}
-              <button className="text-blue-600 hover:text-blue-700 font-medium">
-                联系管理员申请
-              </button>
+              还没有账号？请联系超级管理员发送邀请
             </p>
           </div>
         </div>
@@ -178,7 +175,7 @@ export default function LoginPage() {
         {/* 演示提示 */}
         <div className="mt-4 p-4 bg-blue-50 rounded-lg text-center">
           <p className="text-xs text-slate-700">
-            <strong>使用管理员分配的 Supabase Auth 账号登录</strong>
+            <strong>使用超级管理员邀请的团队账号登录，无需 Vercel 账号</strong>
           </p>
         </div>
       </div>

@@ -69,7 +69,7 @@ export default function SetPasswordPage() {
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-slate-800">iPackAutoparts</h1>
-          <p className="mt-2 text-slate-600">设置后台管理员密码</p>
+          <p className="mt-2 text-slate-600">设置后台团队账号密码</p>
         </div>
 
         {error && (
