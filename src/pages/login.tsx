@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '@/lib/auth/store';
+import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface LoginFormData {
@@ -13,13 +14,15 @@ interface LoginFormData {
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, error, isAuthenticated, isInitialized, initializeFromStorage } = useAuthStore();
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+  const { register, handleSubmit, getValues, formState: { errors } } = useForm<LoginFormData>({
     defaultValues: {
       rememberMe: false,
     },
   });
 
   const [showPassword, setShowPassword] = useState(false);
+  const [resetMessage, setResetMessage] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
   useEffect(() => {
     initializeFromStorage();
   }, [initializeFromStorage]);
@@ -36,6 +39,21 @@ export default function LoginPage() {
     } catch (err) {
       console.error('Login failed:', err);
     }
+  };
+
+  const requestPasswordReset = async () => {
+    const email = getValues('email')?.trim().toLowerCase();
+    setResetMessage('');
+    if (!email) {
+      setResetMessage('请先在上方输入邮箱地址');
+      return;
+    }
+    setIsResetting(true);
+    const { error: resetError } = await getSupabaseBrowserClient().auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://www.ipackautoparts.com/set-password',
+    });
+    setIsResetting(false);
+    setResetMessage(resetError ? '重置邮件发送失败，请稍后重试' : '如该账号存在，密码重置邮件已发送，请检查收件箱和垃圾邮件');
   };
 
   return (
@@ -61,6 +79,7 @@ export default function LoginPage() {
               </div>
             </div>
           )}
+          {resetMessage && <p className="mb-5 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">{resetMessage}</p>}
 
           {/* 登录表单 */}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -158,8 +177,8 @@ export default function LoginPage() {
 
           {/* 底部链接 */}
           <div className="space-y-2 text-center text-sm">
-            <button className="text-blue-600 hover:text-blue-700 font-medium">
-              忘记密码？
+            <button type="button" onClick={requestPasswordReset} disabled={isResetting} className="text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50">
+              {isResetting ? '发送中……' : '忘记密码？'}
             </button>
             <p className="text-slate-600">
               还没有账号？请联系超级管理员发送邀请
