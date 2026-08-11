@@ -32,6 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
   }
 
+  res.setHeader('Cache-Control', 'private, no-store');
   try {
     const { client } = await requireSuperAdmin(req);
     const range = getDateRange(req.query.startDate, req.query.endDate);
@@ -93,7 +94,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }));
     const totalSessions = sourceRows.reduce((sum, row) => sum + row.sessions, 0);
 
-    res.setHeader('Cache-Control', 'private, no-store');
     return res.status(200).json({
       range,
       summary: {

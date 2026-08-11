@@ -35,6 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed', code: 'METHOD_NOT_ALLOWED' });
   }
 
+  res.setHeader('Cache-Control', 'private, no-store');
   try {
     await requireSuperAdmin(req);
     const range = getDateRange(req.query.startDate, req.query.endDate);
@@ -58,7 +59,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       position: numberValue(row.position),
     });
 
-    res.setHeader('Cache-Control', 'private, no-store');
     return res.status(200).json({
       range,
       summary: mapRow(summary ?? {}),
