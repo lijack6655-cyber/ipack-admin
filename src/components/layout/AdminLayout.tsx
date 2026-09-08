@@ -34,6 +34,8 @@ const menuItems = [
     submenu: [
       { label: '产品列表', href: '/admin/products' },
       { label: '新建产品', href: '/admin/products/new' },
+      { label: '产品草稿库', href: '/admin/products/drafts' },
+      { label: '图片银行库', href: '/admin/products/media' },
       { label: '分类管理', href: '/admin/categories' },
     ],
   },
@@ -95,10 +97,10 @@ export default function AdminLayout({ children, user, onLogout }: AdminLayoutPro
         crumbs.push({ label: item.label });
       }
       if (item.submenu) {
-        const matched = item.submenu.find((s) => router.pathname.startsWith(s.href));
+        const matched = [...item.submenu].sort((a,b)=>b.href.length-a.href.length).find((s) => router.pathname.startsWith(s.href));
         if (matched) {
           crumbs.push({ label: item.label });
-          crumbs.push({ label: matched.label });
+          crumbs.push({ label: router.pathname === '/admin/products/[id]' ? '编辑产品' : matched.label });
         }
       }
     }
