@@ -19,30 +19,30 @@ export type Database = {
           id: string
           name: string
           storage_path: string
-          width: number
-          height: number
-          bytes: number
-          created_by: string
+          width: number | null
+          height: number | null
+          bytes: number | null
+          created_by: string | null
           created_at: string
         }
         Insert: {
           id: string
           name: string
           storage_path: string
-          width: number
-          height: number
-          bytes: number
-          created_by: string
+          width: number | null
+          height: number | null
+          bytes: number | null
+          created_by: string | null
           created_at?: string
         }
         Update: {
           id?: string
           name?: string
           storage_path?: string
-          width?: number
-          height?: number
-          bytes?: number
-          created_by?: string
+          width?: number | null
+          height?: number | null
+          bytes?: number | null
+          created_by?: string | null
           created_at?: string
         }
         Relationships: []

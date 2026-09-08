@@ -1,28 +1,4 @@
--- Product workflow, additive schema. Apply after lightweight-access.sql.
 BEGIN;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
-ALTER TABLE public.products ADD COLUMN IF NOT EXISTS cms_content jsonb;
-CREATE TABLE IF NOT EXISTS public.product_drafts (
-  product_id uuid PRIMARY KEY REFERENCES public.products(id) ON DELETE CASCADE,
-  data jsonb NOT NULL CHECK (jsonb_typeof(data) = 'object'),
-  updated_by uuid NOT NULL REFERENCES public.profiles(id),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.product_media (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL CHECK (length(name) <= 180),
-  storage_path text NOT NULL UNIQUE,
-  width integer NOT NULL, height integer NOT NULL, bytes integer NOT NULL,
-  created_by uuid NOT NULL REFERENCES public.profiles(id),
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.product_drafts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.product_media ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.product_drafts, public.product_media FROM anon, authenticated;
-GRANT ALL ON public.product_drafts, public.product_media TO service_role;
--- All product mutations go through the authenticated server and one transaction.
-REVOKE INSERT, UPDATE, DELETE ON public.products FROM authenticated;
-
 -- Keep imported image references in the bank even after their last product is deleted.
 ALTER TABLE public.product_media ALTER COLUMN width DROP NOT NULL, ALTER COLUMN height DROP NOT NULL, ALTER COLUMN bytes DROP NOT NULL, ALTER COLUMN created_by DROP NOT NULL;
 INSERT INTO public.product_media(name,storage_path,width,height,bytes,created_by)
@@ -106,4 +82,3 @@ $$;
 REVOKE ALL ON FUNCTION public.save_product_workflow(uuid,uuid,bigint,text,jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.save_product_workflow(uuid,uuid,bigint,text,jsonb) TO service_role;
 COMMIT;
--- Storage bucket provisioned separately; private and server-write only.

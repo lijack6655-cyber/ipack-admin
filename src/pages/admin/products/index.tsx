@@ -1,155 +1,50 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/router';
 import { useAuthStore } from '@/lib/auth/store';
 import { productRequest } from '@/lib/products/client';
 import { hasPermission } from '@/lib/auth/permissions';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { withAuth } from '@/components/auth/withAuth';
-import { Plus, Search, ExternalLink, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
-import { Tables } from '@/types/database';
+import ProductActions from '@/components/products/ProductActions';
+import type { Tables } from '@/types/database';
 
-type Product = Tables<'products'> & { has_draft?: boolean; draft_title?: string };
-type ProductStatus = Product['status'];
-
-const STATUS_LABELS: Record<ProductStatus, { label: string; cls: string }> = {
-  published: { label: '已发布', cls: 'bg-green-100 text-green-700' },
-  draft: { label: '草稿', cls: 'bg-yellow-100 text-yellow-700' },
-  archived: { label: '已下架', cls: 'bg-slate-100 text-slate-500' },
-};
-
-const pending = <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-xs">待补充</span>;
-
-function ProductsPage() {
-  const router = useRouter();
-  const { user, logout } = useAuthStore();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('全部分类');
-  const [statusFilter, setStatusFilter] = useState<'all' | ProductStatus>('all');
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const data = await productRequest('/api/admin/products');
-        if (!cancelled) setProducts(data.products || []);
-      } catch (error: unknown) {
-        if (!cancelled) setLoadError(error instanceof Error ? error.message : '产品读取失败');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, []);
-
-  const categories = useMemo(
-    () => ['全部分类', ...Array.from(new Set(products.map((p) => p.category_name).filter((v): v is string => Boolean(v)))).sort()],
-    [products],
-  );
-
-  const filtered = useMemo(() => products.filter((product) => {
-    const query = search.trim().toLowerCase();
-    const matchSearch = !query || [product.title, product.display_title, product.sku, product.external_id, ...product.oe_numbers]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(query));
-    const matchCategory = category === '全部分类' || product.category_name === category;
-    const matchStatus = statusFilter === 'all' || product.status === statusFilter;
-    return matchSearch && matchCategory && matchStatus;
-  }), [products, search, category, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  const handleLogout = async () => { await logout(); router.push('/login'); };
-  if (!user) return null;
-
-  return (
-    <AdminLayout user={user} onLogout={handleLogout}>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">产品列表</h1>
-          <p className="text-sm text-slate-500 mt-1">共 {products.length} 个产品 · 编辑资料、管理图片与发布状态</p>
-        </div>
-        {hasPermission(user.role?.name, 'PRODUCT_WRITE') && <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
-          <Plus className="w-4 h-4" />新建产品草稿
-        </Link>}
-      </div>
-
-      {loadError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex gap-2">
-          <AlertCircle className="w-4 h-4 mt-0.5" />{loadError}
-        </div>
-      )}
-
-      <div className="bg-white rounded-lg border border-slate-200 p-4 mb-4 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg" placeholder="搜索名称、SKU、ID或OE号..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        </div>
-        <select className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white" value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}>
-          {categories.map((item) => <option key={item}>{item}</option>)}
-        </select>
-        <select className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value as 'all' | ProductStatus); setPage(1); }}>
-          <option value="all">全部状态</option>
-          <option value="published">已发布</option>
-          <option value="draft">草稿</option>
-          <option value="archived">已下架</option>
-        </select>
-      </div>
-
-      <div className="bg-white rounded-lg border border-slate-200 overflow-x-auto">
-        <table className="w-full text-sm min-w-[1050px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              {['产品名称','SKU','分类','OE号','价格文本','库存','核验','状态','更新时间','前台'].map((label) => (
-                <th key={label} className="text-left px-4 py-3 font-medium text-slate-600">{label}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {loading ? (
-              <tr><td colSpan={10} className="text-center py-12 text-slate-400">正在读取真实数据...</td></tr>
-            ) : paged.length === 0 ? (
-              <tr><td colSpan={10} className="text-center py-12 text-slate-400">暂无匹配数据</td></tr>
-            ) : paged.map((product) => (
-              <tr key={product.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium text-slate-900 max-w-xs">{hasPermission(user.role?.name, 'PRODUCT_WRITE') ? <Link href={`/admin/products/${product.id}`} className="line-clamp-2 text-blue-700 hover:underline">{product.draft_title || product.display_title || product.title}</Link> : <span>{product.display_title || product.title}</span>}{product.has_draft && <span className="text-xs text-amber-700">有待发布草稿</span>}</td>
-                <td className="px-4 py-3 font-mono text-xs">{product.sku || pending}</td>
-                <td className="px-4 py-3 text-slate-600">{product.category_name || pending}</td>
-                <td className="px-4 py-3 text-slate-600 max-w-40 truncate">{product.oe_numbers.length ? product.oe_numbers.join(', ') : pending}</td>
-                <td className="px-4 py-3 text-slate-700">{product.price_text || pending}</td>
-                <td className="px-4 py-3">{product.stock_quantity ?? pending}</td>
-                <td className="px-4 py-3"><span className="text-xs text-amber-700">{product.verification_status === 'verified' ? '已核验' : '待核验'}</span></td>
-                <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_LABELS[product.status].cls}`}>{STATUS_LABELS[product.status].label}</span></td>
-                <td className="px-4 py-3 text-slate-400 text-xs">{new Date(product.updated_at).toLocaleDateString('zh-CN')}</td>
-                <td className="px-4 py-3">
-                  {product.status === 'published' && product.page_path ? <a aria-label="查看线上产品" href={`https://www.ipackautoparts.com${product.page_path}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800"><ExternalLink className="w-4 h-4" /></a> : '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {!loading && filtered.length > PAGE_SIZE && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50">
-            <span className="text-xs text-slate-500">第 {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} 条，共 {filtered.length} 条</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
-              <span className="text-xs text-slate-600">{currentPage} / {totalPages}</span>
-              <button onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={currentPage === totalPages} className="p-1.5 rounded hover:bg-slate-200 disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
-            </div>
-          </div>
-        )}
-      </div>
-    </AdminLayout>
-  );
+type Product = Tables<'products'> & { has_draft:boolean; draft_title?:string };
+const labels = {published:'已发布',draft:'草稿',archived:'已下架'};
+const button='rounded-lg border px-3 py-2 text-sm disabled:opacity-40';
+function ProductsPage(){
+  const router=useRouter(), {user,logout}=useAuthStore();
+  const drafts=router.pathname==='/admin/products/drafts';
+  const status=drafts?(router.query.tab==='archived'?'archived':'draft'):'published';
+  const [products,setProducts]=useState<Product[]>([]),[urls,setUrls]=useState<Record<string,string>>({});
+  const [loading,setLoading]=useState(true),[error,setError]=useState(''),[notice,setNotice]=useState('');
+  const [copyId,setCopyId]=useState(''),[search,setSearch]=useState(''),[category,setCategory]=useState(''),[pendingOnly,setPendingOnly]=useState(false),[page,setPage]=useState(1);
+  const load=useCallback(async()=>{setLoading(true);setError('');try{const r=await productRequest('/api/admin/products');setProducts(r.products);setUrls(r.image_urls);}catch(e){setError(e instanceof Error?e.message:'读取失败');}finally{setLoading(false);}},[]);
+  // Fetching synchronizes this page with the server and exposes its loading state.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(()=>{void load();},[load]);
+  const query=search.trim().toLowerCase();
+  const filtered=products.filter(p=>p.status===status&&(!category||p.category_name===category)&&(!pendingOnly||p.has_draft)&&(!query||[p.title,p.display_title,p.draft_title,p.sku,p.id,p.external_id,...p.oe_numbers].some(s=>s?.toLowerCase().includes(query))));
+  const pages=Math.max(1,Math.ceil(filtered.length/10)), current=Math.min(page,pages);
+  const categories=[...new Set(products.map(p=>p.category_name).filter(Boolean))];
+  if(!user)return null;
+  const writable=hasPermission(user.role?.name,'PRODUCT_WRITE');
+  return <AdminLayout user={user} onLogout={async()=>{await logout();await router.push('/login');}}>
+    <div className="flex flex-wrap items-center justify-between gap-4 mb-6"><div><h1 className="text-2xl font-bold">{drafts?'产品草稿库':'产品列表'}</h1><p className="mt-2 text-sm text-slate-500">{drafts?'未发布与已下架产品集中管理；发布需进入编辑产品页面。':'管理前台展示中的产品；保存修改后须在编辑产品页面完成产品发布。'}</p></div>{writable&&<Link className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm" href="/admin/products/new">＋ 新建产品草稿</Link>}</div>
+    {drafts&&<nav aria-label="产品草稿库栏目" className="flex gap-2 mb-4">{(['draft','archived'] as const).map(s=><Link key={s} onClick={()=>setPage(1)} href={`/admin/products/drafts?tab=${s}`} className={`${button} ${status===s?'bg-blue-600 text-white':'bg-white'}`} aria-current={status===s?'page':undefined}>{s==='draft'?'产品草稿':'产品下架'}（{products.filter(p=>p.status===s).length}）</Link>)}</nav>}
+    {notice&&<div role="status" className="bg-green-50 text-green-800 p-4 mb-4 rounded-lg">{notice}{copyId&&<Link className="ml-3 underline" href={`/admin/products/${copyId}`}>去编辑类似品</Link>}</div>}
+    {error&&<div role="alert" className="bg-red-50 text-red-800 p-4 mb-4 rounded-lg">{error}<button className="ml-3 underline" onClick={()=>void load()}>重新读取</button></div>}
+    <div className="bg-white border rounded-xl p-4 flex flex-wrap gap-3 mb-4"><input aria-label="搜索产品" className="flex-1 min-w-48 border rounded-lg px-3 py-2 text-sm" placeholder="搜索产品名称、SKU、ID、OE 号" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}}/><select aria-label="筛选分类" className={`${button} bg-white`} value={category} onChange={e=>{setCategory(e.target.value);setPage(1);}}><option value="">全部分类</option>{categories.map(c=><option key={c!}>{c}</option>)}</select>{!drafts&&<label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={pendingOnly} onChange={e=>{setPendingOnly(e.target.checked);setPage(1);}}/>仅看有待发布修改</label>}</div>
+    <div className="bg-white border rounded-xl"><div className="hidden lg:grid grid-cols-[minmax(0,1fr)_140px_150px_180px] gap-4 px-5 py-3 bg-slate-50 text-sm text-slate-600 rounded-t-xl"><span>产品信息</span><span>价格 / MOQ</span><span>状态 / 更新时间</span><span>操作</span></div>
+      {loading?<p role="status" className="p-12 text-center text-slate-500">正在读取产品…</p>:!error&&filtered.length===0?<p className="p-12 text-center text-slate-500">{search||category||pendingOnly?'没有符合筛选条件的产品':status==='draft'?'暂无产品草稿，可新建产品或从现有产品发布类似品':status==='archived'?'暂无已下架产品':'暂无已发布产品'}</p>:!error&&filtered.slice((current-1)*10,current*10).map(p=><article key={p.id} aria-label={`产品：${p.display_title||p.title}`} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_140px_150px_180px] gap-4 p-5 border-t hover:bg-slate-50">
+        <div className="flex gap-4 min-w-0"><div className="relative w-[72px] h-[72px] shrink-0 border rounded bg-white overflow-hidden">{p.image_path&&urls[p.image_path]?<Image unoptimized fill sizes="72px" className="object-contain" src={urls[p.image_path]} alt={p.display_title||p.title}/>:<span className="flex items-center justify-center h-full text-xs text-slate-400">暂无图片</span>}</div><div className="min-w-0">{writable?<Link className="text-blue-700 font-medium line-clamp-2 hover:underline" href={`/admin/products/${p.id}`}>{p.display_title||p.title}</Link>:<p className="font-medium line-clamp-2">{p.display_title||p.title}</p>}<p className="text-xs text-slate-500 mt-2">SKU：{p.sku||'待补充'} · 分类：{p.category_name||'待补充'}</p><p className="text-xs text-slate-500 mt-1">{[p.make,p.model,p.years].filter(Boolean).join(' · ')||'车型待补充'} · OE：{p.oe_numbers.join(', ')||'待补充'}</p><p className="text-xs text-slate-400 break-all mt-1">ID：{p.external_id||p.id}</p></div></div>
+        <div className="text-sm"><p>{p.price_text||'价格待补充'}</p><p className="text-xs text-slate-500 mt-2">MOQ：{p.moq_text||'待补充'}</p></div>
+        <div><span className={`text-xs rounded-full px-2 py-1 ${p.status==='published'?'bg-green-100 text-green-800':p.status==='draft'?'bg-amber-100 text-amber-800':'bg-slate-200 text-slate-600'}`}>{labels[p.status]}</span>{p.status==='published'&&p.has_draft&&<p className="text-xs text-amber-700 mt-2">有待发布修改</p>}<p className="text-xs text-slate-400 mt-2">{new Date(p.updated_at).toLocaleString('zh-CN')}</p></div>
+        <div>{writable&&<ProductActions product={p} onComplete={(action,result)=>{setCopyId(action==='duplicate'?result.id:'');setNotice(action==='duplicate'?'类似品草稿已创建，尚未发布。':action==='archive'?'已下架，可在产品草稿库的「产品下架」栏目查看。':'产品已永久删除。');void load();}}/>}{p.status==='published'&&p.page_path&&<a className="inline-block text-xs text-slate-500 mt-2 px-2 hover:text-blue-700" href={`https://www.ipackautoparts.com${p.page_path}`} target="_blank" rel="noreferrer">查看线上页面 ↗</a>}</div>
+      </article>)}
+      {!loading&&!error&&<div className="flex justify-between items-center gap-2 p-4 border-t text-xs text-slate-500"><span>共 {filtered.length} 个产品 · {current} / {pages} 页</span><div className="flex gap-2"><button className={button} disabled={current===1} onClick={()=>setPage(current-1)}>上一页</button><button className={button} disabled={current===pages} onClick={()=>setPage(current+1)}>下一页</button></div></div>}
+    </div>
+  </AdminLayout>;
 }
-
 export default withAuth(ProductsPage);

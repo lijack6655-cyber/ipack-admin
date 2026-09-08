@@ -18,7 +18,7 @@ export const emptyProduct: ProductInput = {
   price_text: '', moq_text: '', featured: false, images: [], short_description: '', seo_title: '', seo_description: '', verification_note: '',
 };
 export function publishIssues(data: ProductInput): string[] {
-  return [!data.sku && 'SKU', !data.category_id && '产品分类', !data.images.length && '产品主图',
+  return [data.title.includes('[副本]') && '修改副本产品名称', !data.sku && 'SKU', !data.category_id && '产品分类', !data.images.length && '产品主图',
     !data.description && '产品描述', !data.verification_note && '资料核验说明'].filter((item): item is string => Boolean(item));
 }
 export function escapeHtml(value: unknown): string {

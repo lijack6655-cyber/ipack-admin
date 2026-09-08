@@ -22,7 +22,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         client.from('categories').select('id,name,status').eq('status','published').order('sort_order'),
       ]);
       if (error || draftError || categoryError) throw error || draftError || categoryError;
-      return res.json({ products: products?.map(p => { const d = drafts?.find(d => d.product_id === p.id); return { ...p, draft_title: (d?.data as { title?: string } | undefined)?.title, has_draft: Boolean(d) }; }), categories });
+      const rows = (products || []).map(p => {
+        const d = drafts?.find(d => d.product_id === p.id);
+        const form = d ? productInput.parse(d.data) : fromProduct(p);
+        const shown = p.status === 'published' ? fromProduct(p) : form;
+        return { ...p, display_title: shown.title, sku: shown.sku, price_text: shown.price_text, moq_text: shown.moq_text,
+          category_name: categories?.find(c => c.id === shown.category_id)?.name || p.category_name,
+          make: shown.make, model: shown.model, years: shown.years, oe_numbers: shown.oe_numbers,
+          image_path: shown.images[0]?.path || null, has_draft: Boolean(d), draft_title: d ? form.title : undefined };
+      });
+      return res.json({ products: rows, categories, image_urls: await imageUrls(client, rows.map(p => p.image_path).filter((s): s is string => Boolean(s))) });
     }
     const { data: product, error } = id ? await client.from('products').select('*').eq('id',id).maybeSingle() : { data: null, error: null };
     if (error) throw error;
@@ -36,11 +45,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.json({ product, form, has_draft: Boolean(draft), categories, image_urls: await imageUrls(client,form.images.map(i => i.path)) });
     }
     if (!req.headers['content-type']?.includes('application/json')) throw new ProductError(415, '需要 JSON 请求');
-    const parsed = z.object({ action: z.enum(['save','preview','publish','archive']), revision: z.number().int().nonnegative(), data: productInput.optional(), confirmed: z.boolean().optional() }).strict().safeParse(req.body);
+    const parsed = z.object({ action: z.enum(['save','preview','publish','archive','duplicate','delete']), request_id: z.string().uuid().optional(), source: z.enum(['live','draft']).optional(), revision: z.number().int().nonnegative(), data: productInput.optional(), confirmed: z.boolean().optional() }).strict().safeParse(req.body);
     if (!parsed.success) throw new ProductError(400, parsed.error.issues[0].message);
-    const { action, revision, data, confirmed } = parsed.data;
+    const { action, revision, data, confirmed, request_id, source } = parsed.data;
     if (action !== 'save' && !product) throw new ProductError(400, '请先保存草稿');
-    if (product && product.revision !== revision) throw new ProductError(409, '其他人已更新该产品，请复制当前修改后重新载入，避免覆盖。');
+    if (action !== 'duplicate' && product && product.revision !== revision) throw new ProductError(409, '其他人已更新该产品，请复制当前修改后重新载入，避免覆盖。');
     if (action === 'preview' || action === 'publish') {
       if (!draft || !product) throw new ProductError(400, '请先保存草稿');
       const form = productInput.parse(draft.data);
@@ -50,6 +59,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (missing.length) throw new ProductError(400, `发布前请补充：${missing.join('、')}`);
       if (!confirmed) throw new ProductError(400, '请确认已核对资料并同意公开发布');
     }
+    let copyPayload: Json | undefined;
+    if (action === 'duplicate' && product) {
+      if (!request_id) throw new ProductError(400,'缺少操作编号，请重新打开操作菜单');
+      if (source === 'draft' && !draft) throw new ProductError(409,'草稿已变化，请重新载入');
+      const copied = productInput.parse(source === 'draft' ? draft!.data : fromProduct(product));
+      copied.title = copied.title.slice(0,235) + ' [副本]';
+      copied.sku = ''; copied.featured = false; copied.verification_note = '';
+      copyPayload = { request_id, data: copied } as Json;
+    }
+    if (action === 'delete' && !confirmed) throw new ProductError(400,'请确认永久删除，删除后无法恢复');
     if (action === 'archive' && !confirmed) throw new ProductError(400, '请确认下架');
     if (action === 'save') {
       if (!data) throw new ProductError(400, '缺少产品内容');
@@ -61,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
     const { data: result, error: saveError } = await client.rpc('save_product_workflow', {
-      actor, product_id: id || randomUUID(), expected_revision: revision, operation: action, ...(data && action === 'save' ? { payload: data as Json } : {}),
+      actor, product_id: id || randomUUID(), expected_revision: revision, operation: action, ...(copyPayload ? { payload: copyPayload } : data && action === 'save' ? { payload: data as Json } : {}),
     });
     if (saveError?.code === '40001' || saveError?.code === '23505') throw new ProductError(409, '产品已被更新或编码发生冲突，请重新载入后检查');
     if (saveError?.code === '42501') throw new ProductError(403, '没有产品操作权限');
