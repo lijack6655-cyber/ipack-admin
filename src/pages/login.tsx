@@ -145,16 +145,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* 记住我 */}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                {...register('rememberMe')}
-              />
-              <span className="text-sm text-slate-700">记住我 (30天内)</span>
-            </label>
-
             {/* 登录按钮 */}
             <button
               type="submit"
@@ -181,7 +171,7 @@ export default function LoginPage() {
               {isResetting ? '发送中……' : '忘记密码？'}
             </button>
             <p className="text-slate-600">
-              还没有账号？请联系超级管理员发送邀请
+              仅限内部账号使用；账号问题请联系管理员
             </p>
           </div>
         </div>
@@ -194,7 +184,7 @@ export default function LoginPage() {
         {/* 演示提示 */}
         <div className="mt-4 p-4 bg-blue-50 rounded-lg text-center">
           <p className="text-xs text-slate-700">
-            <strong>使用超级管理员邀请的团队账号登录，无需 Vercel 账号</strong>
+            <strong>使用分配给你的内部邮箱账号登录</strong>
           </p>
         </div>
       </div>

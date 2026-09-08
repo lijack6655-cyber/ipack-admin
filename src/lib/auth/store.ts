@@ -17,10 +17,12 @@ interface AuthState {
   setError: (error: string | null) => void;
   clearAuth: () => void;
   initializeFromStorage: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const roleMap: Record<Profile['role'], RoleType> = {
   super_admin: RoleType.SUPER_ADMIN,
+  operator: RoleType.OPERATOR,
   product_manager: RoleType.PRODUCT_MANAGER,
   editor: RoleType.EDITOR,
   sales: RoleType.SALES,
@@ -68,7 +70,7 @@ function getLoginErrorMessage(error: { code?: string; message?: string } | null)
     error?.code === 'email_not_confirmed' ||
     error?.message?.toLowerCase().includes('invalid login credentials')
   ) {
-    return '邮箱或密码不正确，或账号尚未完成邀请激活。请检查邀请邮件，或联系超级管理员重新发送邀请';
+    return '邮箱或密码不正确，或内部账号尚未启用。请联系管理员核对账号';
   }
 
   return '登录服务暂时不可用，请稍后重试';
@@ -76,6 +78,7 @@ function getLoginErrorMessage(error: { code?: string; message?: string } | null)
 
 let initializationPromise: Promise<void> | null = null;
 let listenerRegistered = false;
+let authRevision = 0;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -85,6 +88,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isInitialized: false,
 
   login: async (email: string, password: string) => {
+    let revision = ++authRevision;
     set({ isLoading: true, error: null });
     try {
       const supabase = getSupabaseBrowserClient();
@@ -94,12 +98,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       if (error || !data.user) throw new Error(getLoginErrorMessage(error));
 
+      revision = authRevision;
       const user = await loadProfile(data.user.id);
       await supabase
         .from('profiles')
         .update({ last_login_at: new Date().toISOString() })
         .eq('id', data.user.id);
-      set({ user, isAuthenticated: true, error: null });
+      if (revision === authRevision) set({ user, isAuthenticated: true, error: null });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : '登录失败，请重试';
       set({ user: null, isAuthenticated: false, error: message });
@@ -110,7 +115,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    set({ isLoading: true });
+    ++authRevision;
+    set({ user: null, isAuthenticated: false, isLoading: true });
     try {
       await getSupabaseBrowserClient().auth.signOut();
     } finally {
@@ -120,7 +126,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setError: (error) => set({ error }),
 
-  clearAuth: () => set({ user: null, isAuthenticated: false, error: null }),
+  clearAuth: () => { ++authRevision; set({ user: null, isAuthenticated: false, error: null }); },
+
+  refreshProfile: async () => {
+    const current = get().user;
+    if (!current) return;
+    const revision = authRevision;
+    try {
+      const user = await loadProfile(current.id);
+      if (revision === authRevision) set({ user });
+    } catch {
+      if (revision === authRevision) { ++authRevision; set({ user: null, isAuthenticated: false, error: '账号权限已变更或无法核验，请重新登录' }); }
+    }
+  },
 
   initializeFromStorage: async () => {
     if (get().isInitialized) return;
@@ -139,18 +157,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         if (!listenerRegistered) {
           listenerRegistered = true;
-          supabase.auth.onAuthStateChange(async (_event, session) => {
+          supabase.auth.onAuthStateChange((_event, session) => {
+            const revision = ++authRevision;
             if (!session?.user) {
               set({ user: null, isAuthenticated: false });
               return;
             }
-            try {
-              const user = await loadProfile(session.user.id);
-              set({ user, isAuthenticated: true, error: null });
-            } catch (error: unknown) {
-              const message = error instanceof Error ? error.message : '账号权限读取失败';
-              set({ user: null, isAuthenticated: false, error: message });
-            }
+            // Supabase callbacks run under the auth lock: defer API calls outside it.
+            setTimeout(() => {
+              if (revision !== authRevision) return;
+              void loadProfile(session.user.id).then((user) => {
+                if (revision === authRevision) set({ user, isAuthenticated: true, error: null });
+              }).catch(() => {
+                if (revision === authRevision) set({ user: null, isAuthenticated: false, error: '账号权限读取失败' });
+              });
+            }, 0);
           });
         }
       } catch (error: unknown) {
