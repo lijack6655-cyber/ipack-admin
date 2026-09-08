@@ -8,13 +8,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   try {
     const { data, error } = await getSupabaseServerClient().from('products')
-      .select('external_id,slug,title,display_title,category_name,make,model,years,oe_numbers,description,price_text,moq_text,image_path,hover_image_path,gallery_paths,featured,source_rank,source_url,search_text,page_path')
+      .select('id,external_id,slug,title,display_title,category_name,make,model,years,oe_numbers,description,price_text,moq_text,image_path,hover_image_path,gallery_paths,featured,source_rank,source_url,search_text,page_path')
       .eq('status', 'published')
       .order('featured', { ascending: false })
       .order('title');
     if (error) throw error;
     const products = (data ?? []).map((product) => ({
-      id: product.external_id,
+      id: product.external_id || product.id,
       slug: product.slug,
       title: product.title,
       displayTitle: product.display_title,
@@ -35,7 +35,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       searchText: product.search_text,
       url: product.page_path,
     }));
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('CDN-Cache-Control', 'no-store');
     return res.status(200).json(products);
   } catch (error) {
     console.error('Catalog API failed', error instanceof Error ? error.message : 'Unknown error');

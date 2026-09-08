@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuthStore } from '@/lib/auth/store';
-import { getSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { productRequest } from '@/lib/products/client';
+import { hasPermission } from '@/lib/auth/permissions';
 import AdminLayout from '@/components/layout/AdminLayout';
 import { withAuth } from '@/components/auth/withAuth';
 import { Plus, Search, ExternalLink, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 import { Tables } from '@/types/database';
 
-type Product = Tables<'products'>;
+type Product = Tables<'products'> & { has_draft?: boolean; draft_title?: string };
 type ProductStatus = Product['status'];
 
 const STATUS_LABELS: Record<ProductStatus, { label: string; cls: string }> = {
@@ -35,13 +36,8 @@ function ProductsPage() {
     let cancelled = false;
     const load = async () => {
       try {
-        const { data, error } = await getSupabaseBrowserClient()
-          .from('products')
-          .select('*')
-          .order('featured', { ascending: false })
-          .order('updated_at', { ascending: false });
-        if (error) throw error;
-        if (!cancelled) setProducts(data || []);
+        const data = await productRequest('/api/admin/products');
+        if (!cancelled) setProducts(data.products || []);
       } catch (error: unknown) {
         if (!cancelled) setLoadError(error instanceof Error ? error.message : '产品读取失败');
       } finally {
@@ -79,11 +75,11 @@ function ProductsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">产品列表</h1>
-          <p className="text-sm text-slate-500 mt-1">Supabase真实数据：{products.length}条；缺失字段显示“待补充”</p>
+          <p className="text-sm text-slate-500 mt-1">共 {products.length} 个产品 · 编辑资料、管理图片与发布状态</p>
         </div>
-        <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+        {hasPermission(user.role?.name, 'PRODUCT_WRITE') && <Link href="/admin/products/new" className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
           <Plus className="w-4 h-4" />新建产品草稿
-        </Link>
+        </Link>}
       </div>
 
       {loadError && (
@@ -124,7 +120,7 @@ function ProductsPage() {
               <tr><td colSpan={10} className="text-center py-12 text-slate-400">暂无匹配数据</td></tr>
             ) : paged.map((product) => (
               <tr key={product.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium text-slate-900 max-w-xs"><span className="line-clamp-2">{product.display_title || product.title}</span></td>
+                <td className="px-4 py-3 font-medium text-slate-900 max-w-xs">{hasPermission(user.role?.name, 'PRODUCT_WRITE') ? <Link href={`/admin/products/${product.id}`} className="line-clamp-2 text-blue-700 hover:underline">{product.draft_title || product.display_title || product.title}</Link> : <span>{product.display_title || product.title}</span>}{product.has_draft && <span className="text-xs text-amber-700">有待发布草稿</span>}</td>
                 <td className="px-4 py-3 font-mono text-xs">{product.sku || pending}</td>
                 <td className="px-4 py-3 text-slate-600">{product.category_name || pending}</td>
                 <td className="px-4 py-3 text-slate-600 max-w-40 truncate">{product.oe_numbers.length ? product.oe_numbers.join(', ') : pending}</td>
@@ -134,7 +130,7 @@ function ProductsPage() {
                 <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_LABELS[product.status].cls}`}>{STATUS_LABELS[product.status].label}</span></td>
                 <td className="px-4 py-3 text-slate-400 text-xs">{new Date(product.updated_at).toLocaleDateString('zh-CN')}</td>
                 <td className="px-4 py-3">
-                  {product.page_path ? <a href={`https://www.ipackautoparts.com${product.page_path}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800"><ExternalLink className="w-4 h-4" /></a> : pending}
+                  {product.status === 'published' && product.page_path ? <a aria-label="查看线上产品" href={`https://www.ipackautoparts.com${product.page_path}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800"><ExternalLink className="w-4 h-4" /></a> : '—'}
                 </td>
               </tr>
             ))}

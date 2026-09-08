@@ -17,13 +17,8 @@ export const PERMISSIONS: Record<string, Permission> = {
     category: PermissionCategory.ACCOUNT,
     level: PermissionLevel.WRITE,
   },
-  'ACCOUNT_INVITE': {
-    id: 'perm_account_invite',
-    name: 'ACCOUNT_INVITE',
-    description: '邀请新成员',
-    category: PermissionCategory.ACCOUNT,
-    level: PermissionLevel.WRITE,
-  },
+  'INQUIRY_READ': { id: 'perm_inquiry_read', name: 'INQUIRY_READ', description: '查看询价记录', category: PermissionCategory.CONTENT, level: PermissionLevel.READ },
+  'APPEARANCE_WRITE': { id: 'perm_appearance_write', name: 'APPEARANCE_WRITE', description: '维护公共页面外观', category: PermissionCategory.CONTENT, level: PermissionLevel.WRITE },
   'PERMISSION_MANAGE': {
     id: 'perm_permission_manage',
     name: 'PERMISSION_MANAGE',
@@ -129,6 +124,10 @@ export const PERMISSIONS: Record<string, Permission> = {
 
 // 角色定义（真实场景中应从数据库加载）
 export const ROLES: Record<RoleType, Role> = {
+  [RoleType.OPERATOR]: {
+    id: 'role_operator', name: RoleType.OPERATOR, description: '运营', isCustom: false,
+    permissions: ['PRODUCT_READ', 'PRODUCT_WRITE', 'PRODUCT_PUBLISH', 'CONTENT_READ', 'CONTENT_WRITE', 'CONTENT_PUBLISH', 'INQUIRY_READ', 'APPEARANCE_WRITE', 'ANALYTICS_READ'].map((key) => PERMISSIONS[key]),
+  },
   [RoleType.SUPER_ADMIN]: {
     id: 'role_super_admin',
     name: RoleType.SUPER_ADMIN,
@@ -162,8 +161,8 @@ export const ROLES: Record<RoleType, Role> = {
   [RoleType.SALES]: {
     id: 'role_sales',
     name: RoleType.SALES,
-    description: '询盘与客户跟进权限',
-    permissions: [PERMISSIONS['ANALYTICS_READ']],
+    description: '业务员：产品、文章维护及询价记录查看',
+    permissions: ['PRODUCT_READ', 'PRODUCT_WRITE', 'PRODUCT_PUBLISH', 'CONTENT_READ', 'CONTENT_WRITE', 'CONTENT_PUBLISH', 'INQUIRY_READ'].map((key) => PERMISSIONS[key]),
     isCustom: false,
   },
   [RoleType.SOCIAL_ADMIN]: {
@@ -209,4 +208,20 @@ export function hasPermission(
 export function getRolePermissions(roleType: RoleType): string[] {
   const role = ROLES[roleType];
   return role.permissions.map((p) => p.name);
+}
+
+// Shared by navigation and route guards; database RLS remains authoritative.
+export function canAccessPath(role: RoleType | null | undefined, path: string): boolean {
+  if (!role || !ROLES[role]) return false;
+  if (path.startsWith('/admin/products/')) return hasPermission(role, 'PRODUCT_WRITE');
+  const routes: [string, string][] = [
+    ['/admin/products/new', 'PRODUCT_WRITE'], ['/admin/products', 'PRODUCT_READ'],
+    ['/admin/content/articles/new', 'CONTENT_WRITE'], ['/admin/content/articles', 'CONTENT_READ'],
+    ['/admin/categories', 'PRODUCT_READ'], ['/admin/inquiries', 'INQUIRY_READ'],
+    ['/admin/accounts', 'ACCOUNT_READ'], ['/admin/analytics', 'ANALYTICS_READ'],
+    ['/admin/pages', 'APPEARANCE_WRITE'],
+  ];
+  if (path === '/dashboard' || path === '/admin/settings') return true;
+  const match = routes.find(([prefix]) => path === prefix || path.startsWith(prefix + '/'));
+  return !!match && hasPermission(role, match[1]);
 }

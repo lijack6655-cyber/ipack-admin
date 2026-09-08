@@ -8,7 +8,14 @@ const protectedRoutes = ['/dashboard', '/admin'];
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const { isAuthenticated, isInitialized, initializeFromStorage } = useAuthStore();
+  const { isAuthenticated, isInitialized, initializeFromStorage, refreshProfile } = useAuthStore();
+
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void refreshProfile(); };
+    window.addEventListener('focus', refresh);
+    const timer = window.setInterval(refresh, 30_000);
+    return () => { window.removeEventListener('focus', refresh); window.clearInterval(timer); };
+  }, [refreshProfile]);
 
   useEffect(() => {
     // 首次初始化时从 localStorage 恢复认证状态

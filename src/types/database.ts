@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      product_media: {
+        Row: {
+          id: string
+          name: string
+          storage_path: string
+          width: number
+          height: number
+          bytes: number
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          name: string
+          storage_path: string
+          width: number
+          height: number
+          bytes: number
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          storage_path?: string
+          width?: number
+          height?: number
+          bytes?: number
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      product_drafts: {
+        Row: {
+          product_id: string
+          data: Json
+          updated_by: string
+          updated_at: string
+        }
+        Insert: {
+          product_id: string
+          data: Json
+          updated_by: string
+          updated_at?: string
+        }
+        Update: {
+          product_id?: string
+          data?: Json
+          updated_by?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       articles: {
         Row: {
           author_name: string | null
@@ -377,6 +431,8 @@ export type Database = {
       }
       products: {
         Row: {
+          revision: number
+          cms_content: Json | null
           category_id: string | null
           category_name: string | null
           created_at: string
@@ -414,6 +470,8 @@ export type Database = {
           years: string | null
         }
         Insert: {
+          revision?: number
+          cms_content?: Json | null
           category_id?: string | null
           category_name?: string | null
           created_at?: string
@@ -451,6 +509,8 @@ export type Database = {
           years?: string | null
         }
         Update: {
+          revision?: number
+          cms_content?: Json | null
           category_id?: string | null
           category_name?: string | null
           created_at?: string
@@ -555,11 +615,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_product_workflow: {
+        Args: { actor: string; product_id: string; expected_revision: number; operation: string; payload?: Json }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:
         | "super_admin"
+        | "operator"
         | "product_manager"
         | "editor"
         | "sales"
@@ -701,7 +765,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "product_manager", "editor", "sales", "viewer"],
+      app_role: ["super_admin", "operator", "product_manager", "editor", "sales", "viewer"],
       content_status: ["draft", "published", "archived"],
       inquiry_status: [
         "new",
