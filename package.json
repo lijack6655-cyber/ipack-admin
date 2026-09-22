@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "check:product-inspection": "node --no-warnings --experimental-strip-types scripts/check-product-inspection.mjs"
+    "check:product-inspection": "node --no-warnings --experimental-strip-types scripts/check-product-inspection.mjs",
+    "check:article-cms": "node --no-warnings --experimental-strip-types scripts/check-article-cms.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
