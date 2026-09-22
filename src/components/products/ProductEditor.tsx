@@ -90,7 +90,7 @@ function ProductEditor() {
       if (action==='preview') { setPreview(result.html); return; }
       setProduct(result); setPreview(''); setConfirmed(false);
       if (action==='save') { setSnapshot(JSON.stringify(form)); setHasDraft(true); setNotice('草稿已保存，线上内容未改变。'); }
-      if (action==='publish') { setHasDraft(false); setNotice('已发布。前台目录和详情页已使用本次内容。'); }
+      if (action==='publish') { setHasDraft(false); bypassNavigation.current=true; void router.replace('/admin/products'); }
       if (action==='archive') setNotice('已下架，草稿和历史记录已保留。');
       if (!id && result.id) { bypassNavigation.current=true; await router.replace(`/admin/products/${result.id}`); bypassNavigation.current=false; }
     } catch (error) { setError(error instanceof Error ? error.message : '操作失败'); }
