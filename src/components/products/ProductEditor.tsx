@@ -39,6 +39,8 @@ function ProductEditor() {
   const bypassNavigation = useRef(false);
   const dirty = JSON.stringify(form) !== snapshot;
   const missing = publishIssues(form);
+  const publishedUpdate = product?.status === 'published';
+  const canPublish = publishedUpdate ? (dirty || hasDraft) && confirmed && missing.length === 0 : !dirty && hasDraft && confirmed && missing.length === 0;
   useEffect(() => {
     const unload = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ''; } };
     const leave = () => { if (dirty && !bypassNavigation.current && !window.confirm('还有未保存的修改，确定离开吗？')) { router.events.emit('routeChangeError'); throw new Error('Navigation cancelled to preserve product edits'); } };
@@ -78,7 +80,13 @@ function ProductEditor() {
     try {
       if (action === 'save') { const parsed=productInput.safeParse(form); if (!parsed.success) throw new Error(parsed.error.issues[0].message); }
       if (action === 'archive' && !window.confirm('确认下架？前台目录将移除此产品，详情页会显示已下架。草稿和产品记录会保留。')) return;
-      const result = await productRequest(`/api/admin/products${product ? `/${product.id}` : ''}`,{ method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ action,revision:product?.revision || 0,...(action==='save'?{data:form}:{}),confirmed:action==='archive'||confirmed }) });
+      let currentProduct = product;
+      if (action === 'publish' && publishedUpdate && dirty && product) {
+        const parsed=productInput.safeParse(form); if (!parsed.success) throw new Error(parsed.error.issues[0].message);
+        currentProduct = await productRequest(`/api/admin/products/${product.id}`,{ method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ action:'save',revision:product.revision,data:form }) });
+        setProduct(currentProduct); setSnapshot(JSON.stringify(form)); setHasDraft(true);
+      }
+      const result = await productRequest(`/api/admin/products${currentProduct ? `/${currentProduct.id}` : ''}`,{ method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ action,revision:currentProduct?.revision || 0,...(action==='save'?{data:form}:{}),confirmed:action==='archive'||confirmed }) });
       if (action==='preview') { setPreview(result.html); return; }
       setProduct(result); setPreview(''); setConfirmed(false);
       if (action==='save') { setSnapshot(JSON.stringify(form)); setHasDraft(true); setNotice('草稿已保存，线上内容未改变。'); }
@@ -88,6 +96,7 @@ function ProductEditor() {
     } catch (error) { setError(error instanceof Error ? error.message : '操作失败'); }
     finally { setBusy(false); }
   };
+  const inspect = () => { const issues=inspectionIssues(form); setInspection(issues); if (publishedUpdate) setConfirmed(issues.length===0); };
   const openLibrary = async (page=0) => {
     setBusy(true); setError('');
     try { const result=await productRequest(`/api/admin/product-media?page=${page}`); setMedia(result.media); setImageUrls(previous=>({...previous,...result.image_urls})); setMoreMedia(result.has_more); setMediaPage(page); setLibrary(true); }
@@ -127,11 +136,11 @@ function ProductEditor() {
         <button type="button" className={buttonClass} disabled={form.specifications.length>=50} onClick={()=>change('specifications',[...form.specifications,{name:'',value:''}])}>＋ 添加规格</button>
       </section><section className={panelClass}><h2 className="font-semibold">搜索引擎展示</h2>{input('seo_title','SEO 标题（可选）','留空时使用产品名称')}{input('seo_description','SEO 描述（可选）','准确概括产品及适用需求',true)}<p className="text-xs text-slate-500 break-all">产品地址：{product?`https://www.ipackautoparts.com/products/${product.slug}`:'首次保存后生成固定地址'}</p></section></div>
       <aside className="space-y-6 min-w-0"><section className={panelClass}><h2 className="font-semibold">发布</h2><p className="text-sm">状态：<strong>{product?.status==='published'?'已发布':product?.status==='archived'?'已下架':'草稿'}</strong>{hasDraft&&product?.status==='published'&&' · 有待发布草稿'}</p><p className="text-xs text-slate-500">{dirty?'有未保存修改':hasDraft?'草稿已保存':'当前内容已载入'}</p>
-        <div className="grid grid-cols-3 gap-2"><button type="button" className={buttonClass} onClick={()=>action('save')}>保存草稿</button><button type="button" className={buttonClass} disabled={!hasDraft||dirty} onClick={()=>action('preview')}>预览草稿</button><button type="button" className={buttonClass} onClick={()=>setInspection(inspectionIssues(form))}>检测</button></div>
+        <div className="grid grid-cols-3 gap-2"><button type="button" className={buttonClass} onClick={()=>action('save')}>保存草稿</button><button type="button" className={buttonClass} disabled={!hasDraft||dirty} onClick={()=>action('preview')}>预览草稿</button><button type="button" className={buttonClass} onClick={inspect}>检测</button></div>
         {input('verification_note','资料核验说明','填写资料来源及已核对的车型、OE、图片等信息。仅内部可见。',true,true)}<p className="text-xs text-slate-600">{missing.length?`发布前待补充：${missing.join('、')}`:'发布所需资料已齐全'}</p>
         {inspection&&<div role={inspection.length?'alert':'status'} aria-live="polite" className={`rounded-lg border p-3 text-sm ${inspection.length?'border-red-200 bg-red-50 text-red-800':'border-green-200 bg-green-50 text-green-800'}`}><p className="font-semibold">{inspection.length?`检测发现 ${inspection.length} 项待处理`:'检测通过，未发现错误或漏填项'}</p>{inspection.length>0&&<ul className="mt-2 space-y-1">{inspection.map(issue=><li key={issue}><span className="mr-2 rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold">错误项</span>{issue}</li>)}</ul>}</div>}
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)} disabled={dirty||!hasDraft}/><span>我已核对产品资料和图片，同意将保存的草稿公开发布。</span></label>
-        <button type="button" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-40" disabled={dirty||!hasDraft||!confirmed||missing.length>0} onClick={()=>action('publish')}>产品发布</button>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={confirmed} onChange={e=>setConfirmed(e.target.checked)} disabled={publishedUpdate||dirty||!hasDraft}/><span>{publishedUpdate?'检测通过后，同意将本次修改同步到线上产品。':'我已核对产品资料和图片，同意将保存的草稿公开发布。'}</span></label>
+        <button type="button" className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-40" disabled={!canPublish} onClick={()=>action('publish')}>产品发布</button>
         {product?.status==='published'&&<><a className="block text-center text-sm text-blue-700" href={`https://www.ipackautoparts.com/products/${product.slug}`} target="_blank" rel="noreferrer">查看线上页面 ↗</a></>}{busy&&<p role="status" className="text-sm text-blue-700">正在处理，请稍候…</p>}
       </section><section className={panelClass}><h2 className="font-semibold">B2B 询价信息</h2>{input('price_text','价格说明（可选）','留空时显示 Request a quote')}{input('moq_text','起订量（可选）','留空时显示 Contact us')}<label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.featured} onChange={e=>change('featured',e.target.checked)}/>推荐产品</label></section></aside>
     </fieldset>}
