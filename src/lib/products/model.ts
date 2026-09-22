@@ -18,8 +18,23 @@ export const emptyProduct: ProductInput = {
   price_text: '', moq_text: '', featured: false, images: [], short_description: '', seo_title: '', seo_description: '', verification_note: '',
 };
 export function publishIssues(data: ProductInput): string[] {
-  return [data.title.includes('[副本]') && '修改副本产品名称', !data.sku && 'SKU', !data.category_id && '产品分类', !data.images.length && '产品主图',
-    !data.description && '产品描述', !data.verification_note && '资料核验说明'].filter((item): item is string => Boolean(item));
+  return [!data.title.trim() && '产品名称', data.title.includes('[副本]') && '修改副本产品名称', !data.sku.trim() && 'SKU', !data.category_id && '产品分类', !data.images.length && '产品主图',
+    !data.description.trim() && '产品描述', !data.verification_note.trim() && '资料核验说明'].filter((item): item is string => Boolean(item));
+}
+const inspectionLabels: Record<string,string> = {
+  title:'产品名称', sku:'SKU', category_id:'产品分类', make:'汽车品牌', model:'适用车型', years:'适用年份',
+  oe_numbers:'OE / 替换编号', description:'产品描述', specifications:'产品规格', price_text:'价格说明', moq_text:'起订量',
+  images:'产品图片', short_description:'简短描述', seo_title:'SEO 标题', seo_description:'SEO 描述', verification_note:'资料核验说明',
+};
+export function inspectionIssues(data: ProductInput): string[] {
+  const issues = publishIssues(data);
+  const inspected = new Set(issues.map(issue => issue === '修改副本产品名称' ? '产品名称' : issue));
+  const parsed = productInput.safeParse(data);
+  if (!parsed.success) for (const issue of parsed.error.issues) {
+    const label = inspectionLabels[String(issue.path[0])] || '产品资料';
+    if (!inspected.has(label)) { issues.push(`${label}格式或长度有误`); inspected.add(label); }
+  }
+  return issues;
 }
 export function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
