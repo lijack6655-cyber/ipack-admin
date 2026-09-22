@@ -34,6 +34,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (product.status !== 'published') return fail(410,'This product is no longer listed');
     const html = !product.cms_content ? normalizeLegacyNavigation((legacy as Record<string,string>)[slug] || '') : renderProduct(product,fromProduct(product));
     if (!html) return fail(503,'Product temporarily unavailable');
-    return res.status(200).send(html);
+    return res.status(200).send(html
+      .replace('</head>', '<link rel="stylesheet" href="/assets/css/product-menu.css?v=20260922-menu"></head>')
+      .replace('</body>', '<script src="/assets/js/product-menu.js?v=20260922-menu"></script></body>'));
   } catch { return fail(503,'Product temporarily unavailable'); }
 }
