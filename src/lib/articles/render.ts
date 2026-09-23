@@ -20,9 +20,9 @@ export function renderArticle(article: Pick<Tables<'articles'>, 'title' | 'slug'
   const body = renderMarkdown(article.content_markdown || '');
   const header = shell.header.replace('<a href="/products">Products</a>', '<a href="/product">Product</a><a href="/products">Search</a>');
   const footerBase = shell.footer.replace('<a href="/products">Product Catalog</a>', '<a href="/product">Product Catalog</a>');
-  const footer = preview ? footerBase.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') : footerBase.replace(/main\.js\?v=20260908-leads/g, 'main.js?v=20260922-news');
+  const footer = preview ? footerBase.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '') : footerBase.replace(/main\.js\?v=20260908-leads/g, 'main.js?v=20260922-news') + '<script src="/assets/js/product-menu.js?v=20260922-menu"></script>';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)} | I-PACK Auto Parts</title><meta name="description" content="${escapeHtml(description)}">
+<title>${escapeHtml(title)} | I-PACK Auto Parts</title><meta name="description" content="${escapeHtml(description)}"><link rel="stylesheet" href="https://www.ipackautoparts.com/assets/css/product-menu.css?v=20260922-menu">
 ${preview ? '<meta name="robots" content="noindex,nofollow">' : `<link rel="canonical" href="${escapeHtml(canonical)}"><script type="application/ld+json">${JSON.stringify(schema).replace(/</g, '\\u003c')}</script>`}
 <link rel="stylesheet" href="https://www.ipackautoparts.com/assets/css/styles.css"><style>.content{line-height:1.75}.content h2{margin:2rem 0 .75rem}.content p{margin:0 0 1rem}.content ul{margin:0 0 1rem;padding-left:1.5rem}.content img{max-width:100%;height:auto;border-radius:8px}</style></head>${header}
 ${preview ? '<div style="padding:12px;background:#fff3cd;text-align:center">Draft preview — not published</div>' : ''}
