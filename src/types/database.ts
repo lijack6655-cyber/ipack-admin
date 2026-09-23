@@ -82,6 +82,7 @@ export type Database = {
           imported_at: string | null
           page_path: string | null
           published_at: string | null
+          revision: number
           seo_description: string | null
           seo_title: string | null
           slug: string
@@ -106,6 +107,7 @@ export type Database = {
           imported_at?: string | null
           page_path?: string | null
           published_at?: string | null
+          revision?: number
           seo_description?: string | null
           seo_title?: string | null
           slug: string
@@ -130,6 +132,7 @@ export type Database = {
           imported_at?: string | null
           page_path?: string | null
           published_at?: string | null
+          revision?: number
           seo_description?: string | null
           seo_title?: string | null
           slug?: string
@@ -156,6 +159,35 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      article_drafts: {
+        Row: {
+          article_id: string
+          data: Json
+          updated_by: string
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          data: Json
+          updated_by: string
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          data?: Json
+          updated_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_drafts_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: true
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          }
         ]
       }
       audit_logs: {
@@ -617,6 +649,10 @@ export type Database = {
     Functions: {
       save_product_workflow: {
         Args: { actor: string; product_id: string; expected_revision: number; operation: string; payload?: Json }
+        Returns: Json
+      }
+      save_article_workflow: {
+        Args: { actor: string; article_id: string; expected_revision: number; operation: string; payload?: Json }
         Returns: Json
       }
     }
