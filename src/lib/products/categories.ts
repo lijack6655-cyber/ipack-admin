@@ -1,4 +1,9 @@
 export type CategoryNode = { id: string; name: string; slug: string; parent_id: string | null; sort_order: number };
+export function directoryMove(products:{ id:string;revision:number }[], selected:string[], category:{ id:string;label:string } | undefined) {
+  const items = products.filter(p => selected.includes(p.id)).map(p => ({id:p.id,revision:p.revision}));
+  return category && items.length > 0 && items.length === selected.length
+    ? { label:category.label,payload:{action:'move' as const,category_id:category.id,products:items} } : null;
+}
 export function categoryPath(categories: CategoryNode[], id: string | null) {
   const category = categories.find(c => c.id === id);
   if (!category) return [];
