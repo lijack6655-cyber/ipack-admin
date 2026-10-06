@@ -1,8 +1,18 @@
 import type { Tables } from '@/types/database';
 import { escapeHtml as h, type ProductInput } from './model';
 import shell from './shell.json';
+import type { categoryPath } from './categories';
 
-export function renderProduct(product: Tables<'products'>, form: ProductInput, options: { preview?: boolean; imageUrls?: Record<string,string> } = {}) {
+export function productBreadcrumb(title:string,path:ReturnType<typeof categoryPath>) {
+  const items = [{name:'Home',url:'/'},{name:'Product',url:'/product'},...path.map(c => ({name:c.name,url:`/product?category=${encodeURIComponent(c.slug)}`}))];
+  return `<nav class="breadcrumb" aria-label="Breadcrumb">${items.map(c => `<a href="${h(c.url)}">${h(c.name)}</a>`).join(' / ')} / <span aria-current="page">${h(title)}</span></nav>`;
+}
+export function breadcrumbSchema(title:string,path:ReturnType<typeof categoryPath>,url:string) {
+  const items = [{name:'Home',url:'/'},{name:'Product',url:'/product'},...path.map(c => ({name:c.name,url:`/product?category=${encodeURIComponent(c.slug)}`})),{name:title,url}];
+  return `<script type="application/ld+json">${JSON.stringify({'@context':'https://schema.org','@type':'BreadcrumbList',itemListElement:items.map((item,index)=>({'@type':'ListItem',position:index+1,name:item.name,item:new URL(item.url,'https://www.ipackautoparts.com').href}))}).replace(/</g,'\\u003c')}</script>`;
+}
+
+export function renderProduct(product: Tables<'products'>, form: ProductInput, options: { preview?: boolean; imageUrls?: Record<string,string>; categoryPath?:ReturnType<typeof categoryPath> } = {}) {
   const url = `https://www.ipackautoparts.com/products/${encodeURIComponent(product.slug)}`;
   const imageUrl = (path: string) => options.imageUrls?.[path] || `https://www.ipackautoparts.com/${path.replace(/^\//,'')}`;
   const images = form.images.map((image,index) => `<img src="${h(imageUrl(image.path))}" alt="${h(image.alt || form.title)}" ${index ? 'loading="lazy"' : 'fetchpriority="high"'} decoding="async" style="width:100%;aspect-ratio:1;object-fit:contain;background:white;border:1px solid #e2e8f0;border-radius:12px">`);
@@ -14,10 +24,10 @@ export function renderProduct(product: Tables<'products'>, form: ProductInput, o
   const footer = options.preview ? catalogFooter.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'') : catalogFooter.replace(/main\.js\?v=20260908-leads/g,'main.js?v=20260922-product');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${h(form.seo_title || form.title)} | I-PACK Auto Parts</title><meta name="description" content="${h(form.seo_description || form.short_description || form.description.slice(0,160))}">
-${options.preview ? '<meta name="robots" content="noindex,nofollow">' : `<link rel="canonical" href="${h(url)}"><script type="application/ld+json">${JSON.stringify(schema).replace(/</g,'\\u003c')}</script>`}
+${options.preview ? '<meta name="robots" content="noindex,nofollow">' : `<link rel="canonical" href="${h(url)}"><script type="application/ld+json">${JSON.stringify(schema).replace(/</g,'\\u003c')}</script>${breadcrumbSchema(form.title,options.categoryPath || [],url)}`}
 <link rel="stylesheet" href="https://www.ipackautoparts.com/assets/css/styles.css"></head>${header.replace(/src="\/assets\//g,'src="https://www.ipackautoparts.com/assets/')}
 ${options.preview ? '<div style="padding:12px;background:#fff3cd;text-align:center">Draft preview — not published</div>' : ''}
-<main><section class="page-hero"><div class="container"><div class="breadcrumb"><a href="/">Home</a> / <a href="/product">Product</a></div><h1>${h(form.title)}</h1><p>${h(form.short_description)}</p></div></section>
+<main><section class="page-hero"><div class="container">${productBreadcrumb(form.title,options.categoryPath || [])}<h1>${h(form.title)}</h1><p>${h(form.short_description)}</p></div></section>
 <section class="section"><div class="container grid-2"><div>${images[0] || '<p>Product image pending</p>'}<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px">${images.slice(1).join('')}</div></div>
 <div><h2>Product Information</h2><div class="kv-grid">${facts.map(([label,value]) => `<div class="kv"><strong>${h(label)}</strong>${h(value)}</div>`).join('')}</div>
 <p style="margin-top:24px"><button class="btn" data-add-inquiry data-id="${h(product.external_id || product.id)}" data-title="${h(form.title)}" data-category="${h(product.category_name)}" data-oe="${h(form.oe_numbers.join(', '))}" data-url="/products/${h(product.slug)}">Add to RFQ</button> <a class="btn btn-light" href="#product-rfq">Request a Quote</a></p></div></div></section>

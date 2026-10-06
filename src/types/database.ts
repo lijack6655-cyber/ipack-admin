@@ -236,6 +236,9 @@ export type Database = {
       }
       categories: {
         Row: {
+          parent_id: string | null
+          revision: number
+          aliases: string[]
           created_at: string
           created_by: string | null
           description: string | null
@@ -250,6 +253,9 @@ export type Database = {
           verification_status: Database["public"]["Enums"]["verification_status"]
         }
         Insert: {
+          parent_id?: string | null
+          revision?: number
+          aliases?: string[]
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -264,6 +270,9 @@ export type Database = {
           verification_status?: Database["public"]["Enums"]["verification_status"]
         }
         Update: {
+          parent_id?: string | null
+          revision?: number
+          aliases?: string[]
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -647,6 +656,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_directory_workflow: {
+        Args: { actor: string; operation: string; payload: Json }
+        Returns: Json
+      }
       save_product_workflow: {
         Args: { actor: string; product_id: string; expected_revision: number; operation: string; payload?: Json }
         Returns: Json

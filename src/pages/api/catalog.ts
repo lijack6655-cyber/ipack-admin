@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { categoryPath } from '@/lib/products/categories';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -7,8 +8,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
   try {
+    const { data: categories,error: categoryError } = await getSupabaseServerClient().from('categories').select('id,name,slug,parent_id,sort_order').eq('status','published');
+    if (categoryError) throw categoryError;
     const { data, error } = await getSupabaseServerClient().from('products')
-      .select('id,external_id,slug,title,display_title,category_name,make,model,years,oe_numbers,description,price_text,moq_text,image_path,hover_image_path,gallery_paths,featured,source_rank,source_url,search_text,page_path')
+      .select('id,external_id,slug,title,display_title,category_id,category_name,make,model,years,oe_numbers,description,price_text,moq_text,image_path,hover_image_path,gallery_paths,featured,source_rank,source_url,search_text,page_path')
       .eq('status', 'published')
       .order('featured', { ascending: false })
       .order('title');
@@ -18,7 +21,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       slug: product.slug,
       title: product.title,
       displayTitle: product.display_title,
-      category: product.category_name,
+      category: categories?.find(c => c.id === product.category_id)?.name || product.category_name,
+      categoryId: product.category_id,
+      categorySlug: categories?.find(c => c.id === product.category_id)?.slug || null,
+      categoryPath: categoryPath(categories || [],product.category_id),
       make: product.make,
       model: product.model,
       years: product.years,
@@ -32,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       featured: product.featured,
       rank: product.source_rank,
       sourceUrl: product.source_url,
-      searchText: product.search_text,
+      searchText: [product.search_text,...categoryPath(categories || [],product.category_id).map(c => c.name)].filter(Boolean).join(' '),
       url: product.page_path,
     }));
     res.setHeader('Cache-Control', 'no-store');

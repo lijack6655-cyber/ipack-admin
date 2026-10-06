@@ -31,6 +31,7 @@ function ProductsPage(){
   if(!user)return null;
   const writable=hasPermission(user.role?.name,'PRODUCT_WRITE');
   return <AdminLayout user={user} onLogout={async()=>{await logout();await router.push('/login');}}>
+    <div className="mb-4"><Link className="text-blue-700 underline text-sm" href="/admin/categories">产品目录管理</Link></div>
     <div className="flex flex-wrap items-center justify-between gap-4 mb-6"><div><h1 className="text-2xl font-bold">{drafts?'产品草稿库':'产品列表'}</h1><p className="mt-2 text-sm text-slate-500">{drafts?'未发布与已下架产品集中管理；发布需进入编辑产品页面。':'管理前台展示中的产品；保存修改后须在编辑产品页面完成产品发布。'}</p></div>{writable&&<Link className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm" href="/admin/products/new">＋ 新建产品草稿</Link>}</div>
     {drafts&&<nav aria-label="产品草稿库栏目" className="flex gap-2 mb-4">{(['draft','archived'] as const).map(s=><Link key={s} onClick={()=>setPage(1)} href={`/admin/products/drafts?tab=${s}`} className={`${button} ${status===s?'bg-blue-600 text-white':'bg-white'}`} aria-current={status===s?'page':undefined}>{s==='draft'?'产品草稿':'产品下架'}（{products.filter(p=>p.status===s).length}）</Link>)}</nav>}
     {notice&&<div role="status" className="bg-green-50 text-green-800 p-4 mb-4 rounded-lg">{notice}{copyId&&<Link className="ml-3 underline" href={`/admin/products/${copyId}`}>去编辑类似品</Link>}</div>}

@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { fromProduct } from '@/lib/products/server';
-import { renderProduct } from '@/lib/products/render';
+import { renderProduct, productBreadcrumb,breadcrumbSchema } from '@/lib/products/render';
+import { categoryPath } from '@/lib/products/categories';
 import legacy from '@/lib/products/legacy.json';
 
 function normalizeLegacyNavigation(html: string) {
@@ -32,10 +33,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (error) throw error;
     if (!product || product.status === 'draft') return fail(404,'Product not found');
     if (product.status !== 'published') return fail(410,'This product is no longer listed');
-    const html = !product.cms_content ? normalizeLegacyNavigation((legacy as Record<string,string>)[slug] || '') : renderProduct(product,fromProduct(product));
+    const { data: categories,error: categoryError } = await getSupabaseServerClient().from('categories').select('id,name,slug,parent_id,sort_order').eq('status','published');
+    if (categoryError) throw categoryError;
+    const path = categoryPath(categories || [],product.category_id);
+    const title = product.display_title || product.title;
+    const html = !product.cms_content ? normalizeLegacyNavigation((legacy as Record<string,string>)[slug] || '')
+      .replace(/<div class="breadcrumb">[\s\S]*?<\/div>/,productBreadcrumb(title,path))
+      .replace(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g,(script,json:string)=>{
+        try { return JSON.parse(json)['@type'] === 'BreadcrumbList' ? '' : script; } catch { return script; }
+      })
+      .replace('</head>',`${breadcrumbSchema(title,path,`https://www.ipackautoparts.com${product.page_path || `/products/${slug}`}`)}</head>`)
+      : renderProduct(product,fromProduct(product),{categoryPath:path});
     if (!html) return fail(503,'Product temporarily unavailable');
     return res.status(200).send(html
-      .replace('</head>', '<link rel="stylesheet" href="/assets/css/product-menu.css?v=20260922-menu"></head>')
-      .replace('</body>', '<script src="/assets/js/product-menu.js?v=20260922-menu"></script></body>'));
+      .replace('</head>', '<link rel="stylesheet" href="/assets/css/product-menu.css?v=20261006-directory"></head>')
+      .replace('</body>', '<script src="/assets/js/product-menu.js?v=20261006-directory"></script></body>'));
   } catch { return fail(503,'Product temporarily unavailable'); }
 }
