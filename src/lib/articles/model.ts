@@ -1,11 +1,17 @@
 import { z } from 'zod';
 
+export function isSafeArticleImagePath(value: string): boolean {
+  if (/[\\\u0000-\u001f<>"']/.test(value)) return false;
+  if (value.startsWith('/assets/')) {
+    try { return !decodeURIComponent(value.split(/[?#]/, 1)[0]).split('/').includes('..'); } catch { return false; }
+  }
+  return /^\/api\/product-media\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value) || (() => {
+    try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password; } catch { return false; }
+  })();
+}
+
 const text = (max: number) => z.string().trim().max(max);
-const imagePath = z.string().trim().max(500).refine((value) => {
-  if (!value) return true;
-  if (value.startsWith('/assets/')) return !value.includes('..') && !/[\r\n"'<>]/.test(value);
-  try { return new URL(value).protocol === 'https:'; } catch { return false; }
-}, '图片必须使用 /assets/ 路径或 HTTPS 地址');
+const imagePath = z.string().trim().max(500).refine(value => !value || isSafeArticleImagePath(value), '图片必须使用 /assets/ 路径、已上传图片或 HTTPS 地址');
 
 export const articleInput = z.object({
   title: text(240).min(1, '文章标题必填'),

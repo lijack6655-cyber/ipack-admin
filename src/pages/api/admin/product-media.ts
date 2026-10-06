@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prepareImage, MAX_IMAGE_BYTES } from '@/lib/products/image';
 import { imageUrls, ProductError, productFailure, productStaff } from '@/lib/products/server';
+import { articleMediaPaths } from '@/lib/articles/markdown';
 
 export const config = { api: { bodyParser: false } };
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -16,10 +17,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const usage=String(req.query.usage||'all');
       if(search.length>180||!['all','published','draft','unused'].includes(usage)) throw new ProductError(400,'筛选条件无效');
       // ponytail: inventory joins in memory; move to a paginated SQL view if the media library outgrows an admin request.
-      const {data:products,error:productError}=await client.from('products').select('id,title,status,image_path,gallery_paths');
-      const {data:drafts,error:draftError}=await client.from('product_drafts').select('product_id,data');
-      if(productError||draftError)throw productError||draftError;
-      type Item={id:string;path:string;name:string;width:number|null;height:number|null;bytes:number|null;created_at:string|null;references:{id:string;title:string;status:string}[]};
+      const [{data:products,error:productError},{data:drafts,error:draftError},{data:articles,error:articleError},{data:articleDrafts,error:articleDraftError}]=await Promise.all([
+        client.from('products').select('id,title,status,image_path,gallery_paths'),
+        client.from('product_drafts').select('product_id,data'),
+        client.from('articles').select('id,title,slug,status,source_type,featured_image_path,content_markdown'),
+        client.from('article_drafts').select('article_id,data'),
+      ]);
+      if(productError||draftError||articleError||articleDraftError)throw productError||draftError||articleError||articleDraftError;
+      type Item={id:string;path:string;name:string;width:number|null;height:number|null;bytes:number|null;created_at:string|null;references:{id:string;title:string;status:string;kind:'product'|'article'}[]};
       const inventory=new Map<string,Item>();
       for(let offset=0;;offset+=500){
         const {data,error}=await client.from('product_media').select('*').order('created_at',{ascending:false}).order('id').range(offset,offset+499);
@@ -27,14 +32,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         for(const m of data||[]){const legacy=m.storage_path.startsWith('assets/images/');const path=legacy?m.storage_path:`/api/product-media/${m.id}`;inventory.set(path,{...m,path,created_at:legacy?null:m.created_at,references:[]});}
         if((data?.length||0)<500)break;
       }
-      const reference=(path:string,p:{id:string;title:string;status:string})=>{
+      const reference=(path:string,p:{id:string;title:string;status:string;kind:'product'|'article'})=>{
         if(!path)return;
         if(!inventory.has(path)){if(path.startsWith('/api/'))return;inventory.set(path,{id:path,path,name:path.split('/').pop()||path,width:null,height:null,bytes:null,created_at:null,references:[]});}
         const item=inventory.get(path)!;
-        if(!item.references.some(r=>r.id===p.id&&r.status===p.status))item.references.push(p);
+        if(!item.references.some(r=>r.id===p.id&&r.status===p.status&&r.kind===p.kind))item.references.push(p);
       };
-      for(const p of products||[])for(const path of [p.image_path,...p.gallery_paths])if(path)reference(path,p);
-      for(const d of drafts||[]){const p=products?.find(p=>p.id===d.product_id);const form=d.data as {title?:string;images?:{path:string}[]};if(p)for(const image of form.images||[])reference(image.path,{id:p.id,title:form.title||p.title,status:'draft'});}
+      for(const p of products||[])for(const path of [p.image_path,...p.gallery_paths])if(path)reference(path,{...p,kind:'product'});
+      for(const d of drafts||[]){const p=products?.find(p=>p.id===d.product_id);const form=d.data as {title?:string;images?:{path:string}[]};if(p)for(const image of form.images||[])reference(image.path,{id:p.id,title:form.title||p.title,status:'draft',kind:'product'});}
+      const cmsArticles=(articles||[]).filter(a=>a.source_type==='admin_created'||a.source_type==='cms');
+      for(const a of cmsArticles){for(const path of [a.featured_image_path])if(path)reference(path,{id:a.id,title:a.title,status:a.status,kind:'article'});}
+      for(const d of articleDrafts||[]){const a=cmsArticles.find(item=>item.id===d.article_id),form=d.data as {title?:string;featured_image_path?:string;content_markdown?:string};if(a)for(const path of [form.featured_image_path,...articleMediaPaths(form.content_markdown||'')])if(path)reference(path,{id:a.id,title:form.title||a.title,status:'draft',kind:'article'});}
+      for(const a of cmsArticles.filter(item=>item.status==='published'))for(const path of articleMediaPaths(a.content_markdown||''))reference(path,{id:a.id,title:a.title,status:'published',kind:'article'});
       const filtered=[...inventory.values()].filter(m=>(!search||m.name.toLowerCase().includes(search))&&(usage==='all'||usage==='unused'&&!m.references.length||usage==='published'&&m.references.some(r=>r.status==='published')||usage==='draft'&&m.references.length>0&&!m.references.some(r=>r.status==='published')));
       const media=filtered.slice(page*24,page*24+24);
       return res.json({media,total:filtered.length,has_more:filtered.length>(page+1)*24,image_urls:await imageUrls(client,media.map(m=>m.path))});

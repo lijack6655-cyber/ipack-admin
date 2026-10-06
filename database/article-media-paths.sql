@@ -1,23 +1,7 @@
--- Article CMS workflow. Apply after the existing articles table and access policies.
--- This migration is intentionally service-role only; the application validates and
--- renders Markdown before passing the safe HTML snapshot to this RPC.
+-- Upgrade existing Article CMS workflow validation for private product_media references.
 BEGIN;
 SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '30s';
-
-ALTER TABLE public.articles ADD COLUMN IF NOT EXISTS revision bigint NOT NULL DEFAULT 0;
-
-CREATE TABLE IF NOT EXISTS public.article_drafts (
-  article_id uuid PRIMARY KEY REFERENCES public.articles(id) ON DELETE CASCADE,
-  data jsonb NOT NULL CHECK (jsonb_typeof(data) = 'object'),
-  updated_by uuid NOT NULL REFERENCES public.profiles(id),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-
-ALTER TABLE public.article_drafts ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.article_drafts FROM anon, authenticated;
-GRANT ALL ON public.article_drafts TO service_role;
-REVOKE INSERT, UPDATE, DELETE ON public.articles FROM authenticated;
 
 CREATE OR REPLACE FUNCTION public.save_article_workflow(
   actor uuid, article_id uuid, expected_revision bigint, operation text, payload jsonb DEFAULT NULL
