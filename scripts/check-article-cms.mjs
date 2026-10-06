@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { articleInput, articlePublishIssues, emptyArticle } from '../src/lib/articles/model.ts';
+import { articleInput, articlePublishIssues, emptyArticle, filterArticleCollection } from '../src/lib/articles/model.ts';
 import { articleHeadings, articleMediaPaths, hasPublishedArticleMediaReference, renderMarkdown } from '../src/lib/articles/markdown.ts';
 
 assert.deepEqual(articlePublishIssues(emptyArticle), ['文章标题', 'Slug', '文章摘要', '正文']);
@@ -7,6 +7,21 @@ assert.equal(articleInput.safeParse({ ...emptyArticle, title: '展会文章', sl
 assert.equal(articleInput.safeParse({ ...emptyArticle, title: 'x', slug: 'Bad Slug', excerpt: 'x', content_markdown: 'x' }).success, false);
 assert.equal(articleInput.safeParse({ ...emptyArticle, title: 'x', slug: 'safe-slug', excerpt: 'x', content_markdown: 'x', featured_image_path: 'javascript:alert(1)' }).success, false);
 assert.equal(articleInput.safeParse({ ...emptyArticle, title: 'x', slug: 'safe-slug', excerpt: 'x', content_markdown: 'x', featured_image_path: '/assets/images/%2e%2e/private.jpg' }).success, false);
+
+const articleRows = [
+  { id: 'draft', title: '保存时旧标题', slug: 'new-article', status: 'draft', source_type: 'cms', has_draft: true, draft_title: '新品文章草稿' },
+  { id: 'published', title: '已发布文章', slug: 'live-article', status: 'published', source_type: 'cms', has_draft: false },
+  { id: 'pending', title: '线上标题', slug: 'pending-article', status: 'published', source_type: 'cms', has_draft: true, draft_title: '待发布新标题' },
+  { id: 'archived', title: '归档文章', slug: 'old-article', status: 'archived', source_type: 'cms', has_draft: false },
+  { id: 'legacyDraft', title: '旧静态草稿', slug: 'legacy-draft', status: 'draft', source_type: 'front_blog_html', has_draft: true, draft_title: '迁移前草稿' },
+  { id: 'legacyArchived', title: '旧静态归档', slug: 'legacy-archive', status: 'archived', source_type: 'front_blog_html', has_draft: false },
+];
+assert.deepEqual(filterArticleCollection(articleRows, 'draft', '').map(article => article.id), ['draft']);
+assert.deepEqual(filterArticleCollection(articleRows, 'published', '').map(article => article.id), ['published', 'pending']);
+assert.deepEqual(filterArticleCollection(articleRows, 'pending', '').map(article => article.id), ['pending']);
+assert.deepEqual(filterArticleCollection(articleRows, 'archived', '').map(article => article.id), ['archived', 'legacyArchived']);
+assert.deepEqual(filterArticleCollection(articleRows, 'draft', '新品文章').map(article => article.id), ['draft']);
+assert.deepEqual(filterArticleCollection(articleRows, 'pending', 'pending-article').map(article => article.id), ['pending']);
 
 const markdown = '## Highlights\n\nSafe text <script>alert(1)</script>.\n\n- First point\n- Second point\n\n![Poster](/assets/images/poster.jpg)';
 const html = renderMarkdown(markdown);

@@ -45,6 +45,7 @@ const menuItems = [
     icon: FileText,
     submenu: [
       { label: '文章列表', href: '/admin/content/articles' },
+      { label: '内容草稿库', href: '/admin/content/articles/drafts' },
       { label: '新建文章', href: '/admin/content/articles/new' },
     ],
   },
