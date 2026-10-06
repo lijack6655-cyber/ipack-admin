@@ -27,6 +27,34 @@ export const articleInput = z.object({
 
 export type ArticleInput = z.infer<typeof articleInput>;
 
+export type ArticleListItem = {
+  id: string;
+  title: string;
+  slug: string;
+  status: 'published' | 'draft' | 'archived';
+  source_type: string | null;
+  category?: string | null;
+  verification_status?: string;
+  has_draft: boolean;
+  draft_title?: string | null;
+  draft_updated_at?: string | null;
+};
+
+export type ArticleCollection = 'published' | 'draft' | 'pending' | 'archived';
+
+export function filterArticleCollection(articles: ArticleListItem[], collection: ArticleCollection, search: string): ArticleListItem[] {
+  const query = search.trim().toLocaleLowerCase();
+  return articles.filter(article => {
+    const legacy = article.source_type === 'front_blog_html';
+    const matchesCollection = collection === 'published' ? article.status === 'published'
+      : collection === 'draft' ? article.status === 'draft' && !legacy
+        : collection === 'pending' ? article.status === 'published' && article.has_draft && !legacy
+          : article.status === 'archived';
+    return matchesCollection && (!query || [article.title, article.draft_title, article.slug]
+      .some(value => value?.toLocaleLowerCase().includes(query)));
+  });
+}
+
 export const emptyArticle: ArticleInput = {
   title: '', slug: '', category: '', author_name: '', excerpt: '', content_markdown: '',
   seo_title: '', seo_description: '', featured_image_path: '',
