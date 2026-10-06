@@ -24,10 +24,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET' && !id) {
       const [{ data: articles, error }, { data: drafts, error: draftError }] = await Promise.all([
         client.from('articles').select('*').order('updated_at', { ascending: false }),
-        client.from('article_drafts').select('article_id,updated_at'),
+        client.from('article_drafts').select('article_id,updated_at,draft_title:data->>title'),
       ]);
       if (error || draftError) throw error || draftError;
-      return res.json({ articles: (articles || []).map(article => ({ ...article, has_draft: Boolean(drafts?.some(draft => draft.article_id === article.id)) })) });
+      const draftsByArticle = new Map((drafts || []).map(draft => [draft.article_id, draft]));
+      return res.json({ articles: (articles || []).map(article => {
+        const draft = draftsByArticle.get(article.id);
+        return { ...article, has_draft: Boolean(draft), draft_title: draft?.draft_title || null, draft_updated_at: draft?.updated_at || null };
+      }) });
     }
 
     const { data: article, error } = id ? await client.from('articles').select('*').eq('id', id).maybeSingle() : { data: null, error: null };
