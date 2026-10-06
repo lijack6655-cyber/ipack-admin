@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { hasPublishedArticleMediaReference } from '@/lib/articles/markdown';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control','no-store');
@@ -13,7 +14,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const id = req.query.id as string, path = `/api/product-media/${id}`;
     const { data: products, error: productError } = await client.from('products').select('id').eq('status','published').or(`image_path.eq.${path},hover_image_path.eq.${path},gallery_paths.cs.{${path}}`).limit(1);
     if (productError) throw productError;
-    if (!products?.length) return res.status(404).end();
+    if (!products?.length) {
+      let referenced = false;
+      for (let offset = 0; ; offset += 500) {
+        const { data: articles, error: articleError } = await client.from('articles').select('status,source_type,featured_image_path,content_markdown')
+          .eq('status', 'published').in('source_type', ['admin_created', 'cms']).range(offset, offset + 499);
+        if (articleError) throw articleError;
+        referenced = hasPublishedArticleMediaReference(articles || [], path);
+        if (referenced || (articles?.length || 0) < 500) break;
+      }
+      if (!referenced) return res.status(404).end();
+    }
     const { data: media, error } = await client.from('product_media').select('storage_path').eq('id',id).maybeSingle();
     if (error) throw error;
     if (!media) return res.status(404).end();

@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { articleInput, articlePublishIssues } from '@/lib/articles/model';
-import { renderArticle, toArticleInput } from '@/lib/articles/render';
-import { articleFailure, articleStaff, ArticleError } from '@/lib/articles/server';
+import { articleMediaPaths, renderArticle, toArticleInput } from '@/lib/articles/render';
+import { articleFailure, articleImageUrls, articleStaff, ArticleError } from '@/lib/articles/server';
 import type { Json } from '@/types/database';
 
 const bodySchema = z.object({
@@ -37,13 +37,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (draftError) throw draftError;
     if (req.method === 'GET') {
       if (!article) return res.json({ article: null, draft: null, form: null });
-      return res.json({ article, draft: draft?.data || null, form: toArticleInput(article, draft?.data as Record<string, unknown> | null) });
+      const form = toArticleInput(article, draft?.data as Record<string, unknown> | null);
+      const managedPaths = [...new Set([form.featured_image_path, ...articleMediaPaths(form.content_markdown)].filter(path => path.startsWith('/api/product-media/')))];
+      const urls = managedPaths.length ? await articleImageUrls(client, managedPaths) : {};
+      if (form.featured_image_path.startsWith('/assets/')) urls[form.featured_image_path] = form.featured_image_path;
+      else if (/^https:\/\//.test(form.featured_image_path)) urls[form.featured_image_path] = form.featured_image_path;
+      return res.json({ article, draft: draft?.data || null, form, image_urls: urls });
     }
 
     if (!req.headers['content-type']?.includes('application/json')) throw new ArticleError(415, '需要 JSON 请求');
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) throw new ArticleError(400, parsed.error.issues[0].message);
     const { action, revision, data } = parsed.data;
+    const mediaPaths = action === 'save' && data
+      ? [data.featured_image_path, ...articleMediaPaths(data.content_markdown)]
+      : action === 'publish' && draft
+        ? [String((draft.data as Record<string, unknown>).featured_image_path || ''), ...articleMediaPaths(String((draft.data as Record<string, unknown>).content_markdown || ''))]
+        : [];
+    const managedPaths = [...new Set(mediaPaths.filter(path => path.startsWith('/api/product-media/')))];
+    if (managedPaths.length) await articleImageUrls(client, managedPaths);
     if (action === 'save') {
       if (!data) throw new ArticleError(400, '缺少文章内容');
       const payload = { ...data, content_html: renderArticle({ ...data, published_at: null }, true) } as unknown as Json;
@@ -54,7 +66,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!article || !draft) throw new ArticleError(400, '请先保存草稿');
     const form = articleInput.safeParse(toArticleInput(article, draft.data as Record<string, unknown>));
     if (!form.success) throw new ArticleError(400, '草稿内容已损坏，请重新编辑');
-    if (action === 'preview') return res.json({ html: renderArticle({ ...article, ...form.data }, true) });
+    if (action === 'preview') {
+      const paths = [...new Set([form.data.featured_image_path, ...articleMediaPaths(form.data.content_markdown)].filter(path => path.startsWith('/api/product-media/')))];
+      const urls = paths.length ? await articleImageUrls(client, paths) : {};
+      return res.json({ html: renderArticle({ ...article, ...form.data }, true, urls) });
+    }
     const missing = articlePublishIssues(form.data);
     if (missing.length) throw new ArticleError(400, `发布前请补充：${missing.join('、')}`);
     const { data: result, error: publishError } = await client.rpc('save_article_workflow', { actor, article_id: article.id, expected_revision: revision, operation: 'publish' });

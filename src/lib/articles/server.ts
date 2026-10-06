@@ -1,7 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { imageUrls, ProductError } from '@/lib/products/server';
 
 export class ArticleError extends Error { constructor(public status: number, message: string) { super(message); } }
+
+export async function articleImageUrls(client: ReturnType<typeof getSupabaseServerClient>, paths: string[]) {
+  try { return await imageUrls(client, paths); }
+  catch (error) { if (error instanceof ProductError) throw new ArticleError(error.status, error.message); throw error; }
+}
 
 export async function articleStaff(req: NextApiRequest, write = true) {
   const client = getSupabaseServerClient();
