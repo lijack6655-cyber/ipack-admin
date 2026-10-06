@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "check:product-inspection": "node --no-warnings --experimental-strip-types scripts/check-product-inspection.mjs",
+    "check:directory": "node --no-warnings --experimental-strip-types scripts/check-directory.mjs",
     "check:article-cms": "node --no-warnings --experimental-strip-types scripts/check-article-cms.mjs"
   },
   "dependencies": {

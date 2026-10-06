@@ -5,6 +5,7 @@ import { productInput, publishIssues } from '@/lib/products/model';
 import { fromProduct, imageUrls, ProductError, productFailure, productStaff } from '@/lib/products/server';
 import { renderProduct } from '@/lib/products/render';
 import type { Json } from '@/types/database';
+import { categoryPath } from '@/lib/products/categories';
 
 export const config = { api: { bodyParser: { sizeLimit: '80kb' } } };
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -19,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const [{ data: products, error }, { data: drafts, error: draftError }, { data: categories, error: categoryError }] = await Promise.all([
         client.from('products').select('*').order('updated_at', { ascending: false }),
         client.from('product_drafts').select('product_id,data,updated_at'),
-        client.from('categories').select('id,name,status').eq('status','published').order('sort_order'),
+        client.from('categories').select('id,name,slug,parent_id,sort_order,status').eq('status','published').order('sort_order'),
       ]);
       if (error || draftError || categoryError) throw error || draftError || categoryError;
       const rows = (products || []).map(p => {
@@ -40,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (draftError) throw draftError;
     if (req.method === 'GET' && product) {
       const form = draft ? productInput.parse(draft.data) : fromProduct(product);
-      const { data: categories, error: categoryError } = await client.from('categories').select('id,name').eq('status','published').order('sort_order');
+      const { data: categories, error: categoryError } = await client.from('categories').select('id,name,slug,parent_id,sort_order').eq('status','published').order('sort_order');
       if (categoryError) throw categoryError;
       return res.json({ product, form, has_draft: Boolean(draft), categories, image_urls: await imageUrls(client,form.images.map(i => i.path)) });
     }
@@ -54,7 +55,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!draft || !product) throw new ProductError(400, '请先保存草稿');
       const form = productInput.parse(draft.data);
       const urls = await imageUrls(client,form.images.map(i => i.path));
-      if (action === 'preview') return res.json({ html: renderProduct(product,form,{ preview: true, imageUrls: urls }) });
+      if (action === 'preview') {
+        const { data: categories,error: categoryError } = await client.from('categories').select('id,name,slug,parent_id,sort_order').eq('status','published');
+        if (categoryError) throw categoryError;
+        return res.json({ html: renderProduct(product,form,{ preview: true, imageUrls: urls,categoryPath:categoryPath(categories || [],form.category_id) }) });
+      }
       const missing = publishIssues(form);
       if (missing.length) throw new ProductError(400, `发布前请补充：${missing.join('、')}`);
       if (!confirmed) throw new ProductError(400, '请确认已核对资料并同意公开发布');

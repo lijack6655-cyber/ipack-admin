@@ -7,8 +7,9 @@ import { withAuth } from '@/components/auth/withAuth';
 import { useAuthStore } from '@/lib/auth/store';
 import { emptyProduct, inspectionIssues, productInput, publishIssues, type ProductInput } from '@/lib/products/model';
 import { productRequest } from '@/lib/products/client';
+import { categoryOptions, type CategoryNode } from '@/lib/products/categories';
 
-type Category = { id:string; name:string };
+type Category = CategoryNode;
 type ProductState = { id:string; slug:string; status:string; revision:number };
 type Media = { id:string; path:string; name:string; width:number|null; height:number|null };
 const fieldClass = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none';
@@ -125,7 +126,7 @@ function ProductEditor() {
     {notice&&<div role="status" className="mb-4 p-4 rounded-lg bg-green-50 text-green-800">{notice}</div>}
     {loading?<p>正在读取产品资料…</p>:<fieldset disabled={busy||Boolean(id&&!product)} className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-6 min-w-0">
       <div className="space-y-6 min-w-0"><section className={panelClass}><h2 className="font-semibold">产品信息</h2>{input('title','产品名称','填写对外展示的英文产品名称',false,true)}
-        <div className="grid sm:grid-cols-2 gap-4">{input('sku','SKU / 内部货号','发布前必填',false,true)}<label className="block text-sm font-medium text-slate-700">{requiredMark}产品分类<select aria-label="产品分类" aria-required="true" className={`${fieldClass} mt-1`} value={form.category_id} onChange={e=>change('category_id',e.target.value)}><option value="">选择分类</option>{categories.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label></div>
+        <div className="grid sm:grid-cols-2 gap-4">{input('sku','SKU / 内部货号','发布前必填',false,true)}<label className="block text-sm font-medium text-slate-700">{requiredMark}产品分类<select aria-label="产品分类" aria-required="true" className={`${fieldClass} mt-1`} value={form.category_id} onChange={e=>change('category_id',e.target.value)}><option value="">选择分类</option>{categoryOptions(categories).map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label></div>
         <div className="grid sm:grid-cols-3 gap-4">{input('make','汽车品牌','如 Toyota')}{input('model','适用车型','填写已核实的车型')}{input('years','适用年份','如 2018–2020')}</div>
         <label className="block text-sm font-medium text-slate-700">OE / 替换编号<textarea className={`${fieldClass} mt-1`} rows={2} value={form.oe_numbers.join('\n')} onChange={e=>change('oe_numbers',e.target.value.split('\n'))} onBlur={()=>change('oe_numbers',form.oe_numbers.map(s=>s.trim()).filter(Boolean))} placeholder="每行一个编号"/></label>
       </section><section className={panelClass}><h2 className="font-semibold">{requiredMark}主图与产品图库 <span className="text-sm text-slate-500">{form.images.length}/9</span></h2>
