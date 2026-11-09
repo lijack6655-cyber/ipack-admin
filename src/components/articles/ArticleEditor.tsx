@@ -89,7 +89,7 @@ function ArticleEditor({ articleId }: Props) {
   }, [dirty, router.events]);
 
   const change = <K extends keyof ArticleInput>(key: K, value: ArticleInput[K]) => { setForm(previous => ({ ...previous, [key]: value })); if (key === 'content_markdown') setVisualBlocks(parseArticleBlocks(String(value))); setNotice(''); setError(''); setPreview(''); setInspection(null); };
-  const updateBlocks = (next: ArticleBlock[]) => { setVisualBlocks(next); setForm(previous => ({ ...previous, content_markdown: serializeArticleBlocks(next) })); setNotice(''); setError(''); setPreview(''); setInspection(null); };
+  const updateBlocks = (next: ArticleBlock[]) => { selectionRef.current = null; setVisualBlocks(next); setForm(previous => ({ ...previous, content_markdown: serializeArticleBlocks(next) })); setNotice(''); setError(''); setPreview(''); setInspection(null); };
   const updateBlock = (index: number, patch: Partial<ArticleBlock>) => updateBlocks(blocks.map((block, itemIndex) => itemIndex === index ? { ...block, ...patch, source: undefined } as ArticleBlock : block));
   const moveBlock = (index: number, direction: -1 | 1) => { const target = index + direction; if (target < 0 || target >= blocks.length) return; const next = [...blocks]; [next[index], next[target]] = [next[target], next[index]]; updateBlocks(next); };
   const addBlock = () => updateBlocks([...blocks, { type: 'paragraph', text: '在此输入内容' }]);
@@ -100,7 +100,7 @@ function ArticleEditor({ articleId }: Props) {
     setError(''); setNotice(uniqueErrors.length ? `检测发现 ${uniqueErrors.length} 项需要处理` : '检测通过，未发现阻断问题');
   };
   const insertMarkdown = (value: string) => {
-    const area = bodyRef.current, start = selectionRef.current?.start ?? form.content_markdown.length;
+    const area = bodyRef.current, start = area?.closest('details')?.open ? selectionRef.current?.start ?? form.content_markdown.length : form.content_markdown.length;
     const before = form.content_markdown.slice(0, start), after = form.content_markdown.slice(start);
     const prefix = before && !before.endsWith('\n\n') ? before.endsWith('\n') ? '\n' : '\n\n' : '';
     const suffix = after && !after.startsWith('\n\n') ? after.startsWith('\n') ? '\n' : '\n\n' : '';
@@ -217,6 +217,7 @@ function ArticleEditor({ articleId }: Props) {
             {blocks.length === 0 && <p className="text-sm text-slate-500">还没有内容模块，请添加文本或直接编辑 Markdown。</p>}
             <div className="space-y-3">{blocks.map((block, index) => <div key={`${index}-${block.type}`} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-xs font-semibold text-slate-500">模块 {index + 1} · {block.type === 'raw' ? '保留源码' : block.type === 'video' ? '视频' : block.type === 'image' ? '图片' : block.type === 'table' ? '表格' : block.type === 'heading' ? '标题' : block.type === 'list' ? '列表' : block.type === 'quote' ? '引用' : block.type === 'tip' ? '提示' : block.type === 'faq' ? 'FAQ' : block.type === 'cta' ? '导购链接' : '文本'}</span><div className="flex gap-1"><button type="button" className="rounded border px-2 py-1 text-xs" disabled={index === 0} onClick={() => moveBlock(index, -1)}>上移</button><button type="button" className="rounded border px-2 py-1 text-xs" disabled={index === blocks.length - 1} onClick={() => moveBlock(index, 1)}>下移</button></div></div>
+              <button type="button" aria-label={`移除模块 ${index + 1}`} className="rounded border border-red-200 px-2 py-1 text-xs text-red-700" onClick={() => { if (window.confirm(`移除第 ${index + 1} 个模块？保存后才会更新草稿，发布后才会影响线上文章。`)) updateBlocks(blocks.filter((_, itemIndex) => itemIndex !== index)); }}>移除模块</button>
               {block.type === 'raw' && <pre className="max-h-28 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 text-xs text-slate-600">{block.source}</pre>}
               {block.type === 'paragraph' && <textarea aria-label={`模块 ${index + 1} 文本`} className={`${field} text-sm`} rows={3} value={block.text} onChange={e => updateBlock(index, { text: e.target.value })} />}
               {block.type === 'heading' && <input aria-label={`模块 ${index + 1} 标题`} className={field} value={block.text} onChange={e => updateBlock(index, { text: e.target.value })} />}
