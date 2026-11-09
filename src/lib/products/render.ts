@@ -21,7 +21,7 @@ export function renderProduct(product: Tables<'products'>, form: ProductInput, o
   const formHtml = shell.form.replace(/(name="product" value=")[^"]*"/, (_, prefix: string) => `${prefix}${h(form.title)}"`).replace(/(name="oe_number"[^>]*value=")[^"]*"/, (_, prefix: string) => `${prefix}${h(form.oe_numbers.join(', '))}"`);
   const header = shell.header.replace('<a href="/products">Products</a>', '<a href="/product">Product</a><a href="/products">Search</a>');
   const catalogFooter = shell.footer.replace('<a href="/products">Product Catalog</a>', '<a href="/product">Product Catalog</a>');
-  const footer = options.preview ? catalogFooter.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'') : catalogFooter.replace(/main\.js\?v=20260908-leads/g,'main.js?v=20260922-product');
+  const footer = options.preview ? catalogFooter.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'') : catalogFooter.replace(/main\.js\?v=20260908-leads/g,'main.js?v=20261029-brand2');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${h(form.seo_title || form.title)} | I-PACK Auto Parts</title><meta name="description" content="${h(form.seo_description || form.short_description || form.description.slice(0,160))}">
 ${options.preview ? '<meta name="robots" content="noindex,nofollow">' : `<link rel="canonical" href="${h(url)}"><script type="application/ld+json">${JSON.stringify(schema).replace(/</g,'\\u003c')}</script>${breadcrumbSchema(form.title,options.categoryPath || [],url)}`}

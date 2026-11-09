@@ -13,7 +13,7 @@ function normalizeLegacyNavigation(html: string) {
     .replace('<a href="/products">Products</a>', '<a href="/product">Product</a>')
     .replace('<a href="../products">Product Catalog</a>', '<a href="/product">Product Catalog</a>')
     .replace('<a href="/products">Product Catalog</a>', '<a href="/product">Product Catalog</a>')
-    .replace(/assets\/js\/main\.js\?v=[^"']+/g, 'assets/js/main.js?v=20260922-nav');
+    .replace(/assets\/js\/main\.js\?v=[^"']+/g, 'assets/js/main.js?v=20261029-brand2');
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -46,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       : renderProduct(product,fromProduct(product),{categoryPath:path});
     if (!html) return fail(503,'Product temporarily unavailable');
     return res.status(200).send(html
-      .replace('</head>', '<link rel="stylesheet" href="/assets/css/product-menu.css?v=20261006-directory"></head>')
+      .replace('</head>', '<link rel="stylesheet" href="/assets/css/product-menu.css?v=20261029-brand2"></head>')
       .replace('</body>', '<script src="/assets/js/product-menu.js?v=20261006-directory"></script></body>'));
   } catch { return fail(503,'Product temporarily unavailable'); }
 }
