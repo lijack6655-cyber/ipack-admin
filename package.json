@@ -11,7 +11,8 @@
     "type-check": "tsc --noEmit",
     "check:product-inspection": "node --no-warnings --experimental-strip-types scripts/check-product-inspection.mjs",
     "check:directory": "node --no-warnings --experimental-strip-types scripts/check-directory.mjs",
-    "check:article-cms": "node --no-warnings --experimental-strip-types scripts/check-article-cms.mjs"
+    "check:article-cms": "node --no-warnings --experimental-strip-types scripts/check-article-cms.mjs",
+    "check:article-blocks": "node --no-warnings --experimental-strip-types scripts/check-article-blocks.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",

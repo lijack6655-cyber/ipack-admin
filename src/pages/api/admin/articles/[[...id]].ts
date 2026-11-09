@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { z } from 'zod';
 import { articleInput, articlePublishIssues } from '@/lib/articles/model';
 import { articleMediaPaths, renderArticle, toArticleInput } from '@/lib/articles/render';
+import { inspectArticleBlocks, parseArticleBlocks } from '@/lib/articles/blocks';
 import { articleFailure, articleImageUrls, articleStaff, ArticleError } from '@/lib/articles/server';
 import type { Json } from '@/types/database';
 
@@ -53,6 +54,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const parsed = bodySchema.safeParse(req.body);
     if (!parsed.success) throw new ArticleError(400, parsed.error.issues[0].message);
     const { action, revision, data } = parsed.data;
+    const currentRevision = Number((article as { revision?: unknown } | null)?.revision ?? 0);
+    if ((action === 'preview' || action === 'publish') && article && revision !== currentRevision) throw new ArticleError(409, '文章已在其他窗口更新，请重新读取后再预览或发布。当前编辑内容未被覆盖。');
     const mediaPaths = action === 'save' && data
       ? [data.featured_image_path, ...articleMediaPaths(data.content_markdown)]
       : action === 'publish' && draft
@@ -77,6 +80,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const missing = articlePublishIssues(form.data);
     if (missing.length) throw new ArticleError(400, `发布前请补充：${missing.join('、')}`);
+    const blockIssues = inspectArticleBlocks(parseArticleBlocks(form.data.content_markdown)).errors;
+    if (blockIssues.length) throw new ArticleError(400, `发布前请处理：${blockIssues.join('；')}`);
     const { data: result, error: publishError } = await client.rpc('save_article_workflow', { actor, article_id: article.id, expected_revision: revision, operation: 'publish' });
     if (publishError) throw publishError;
     return res.json(result);

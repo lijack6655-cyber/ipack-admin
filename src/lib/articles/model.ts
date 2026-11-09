@@ -10,6 +10,23 @@ export function isSafeArticleImagePath(value: string): boolean {
   })();
 }
 
+export function articleVideoEmbedUrl(value: string): string | null {
+  if (/^[\u0000-\u0020]|[\\\u0000-\u001f<>"']/.test(value)) return null;
+  if (value.startsWith('/assets/')) return /\.(?:mp4|webm|ogg)(?:[?#]|$)/i.test(value) ? value : null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    if (url.hostname === 'youtu.be') { const id = url.pathname.slice(1).split(/[/?#]/, 1)[0]; return id ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}` : null; }
+    if (['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(url.hostname)) {
+      const id = url.pathname === '/watch' ? url.searchParams.get('v') : url.pathname.match(/^\/(?:embed|shorts)\/([^/?#]+)/)?.[1];
+      return id ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}` : null;
+    }
+    if (['vimeo.com', 'www.vimeo.com'].includes(url.hostname)) { const id = url.pathname.match(/^\/(\d+)/)?.[1]; return id ? `https://player.vimeo.com/video/${id}` : null; }
+    if (url.hostname === 'player.vimeo.com' && /^\/video\/\d+/.test(url.pathname)) return url.toString();
+    return /\.(?:mp4|webm|ogg)(?:[?#]|$)/i.test(url.pathname) ? url.toString() : null;
+  } catch { return null; }
+}
+
 const text = (max: number) => z.string().trim().max(max);
 const imagePath = z.string().trim().max(500).refine(value => !value || isSafeArticleImagePath(value), '图片必须使用 /assets/ 路径、已上传图片或 HTTPS 地址');
 
