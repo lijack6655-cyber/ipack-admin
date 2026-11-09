@@ -89,7 +89,7 @@ function ArticleEditor({ articleId }: Props) {
   }, [dirty, router.events]);
 
   const change = <K extends keyof ArticleInput>(key: K, value: ArticleInput[K]) => { setForm(previous => ({ ...previous, [key]: value })); if (key === 'content_markdown') setVisualBlocks(parseArticleBlocks(String(value))); setNotice(''); setError(''); setPreview(''); setInspection(null); };
-  const updateBlocks = (next: ArticleBlock[]) => { setVisualBlocks(next); setForm(previous => ({ ...previous, content_markdown: serializeArticleBlocks(next) })); setNotice(''); setError(''); setPreview(''); setInspection(null); };
+  const updateBlocks = (next: ArticleBlock[]) => { selectionRef.current = null; setVisualBlocks(next); setForm(previous => ({ ...previous, content_markdown: serializeArticleBlocks(next) })); setNotice(''); setError(''); setPreview(''); setInspection(null); };
   const updateBlock = (index: number, patch: Partial<ArticleBlock>) => updateBlocks(blocks.map((block, itemIndex) => itemIndex === index ? { ...block, ...patch, source: undefined } as ArticleBlock : block));
   const moveBlock = (index: number, direction: -1 | 1) => { const target = index + direction; if (target < 0 || target >= blocks.length) return; const next = [...blocks]; [next[index], next[target]] = [next[target], next[index]]; updateBlocks(next); };
   const addBlock = () => updateBlocks([...blocks, { type: 'paragraph', text: '在此输入内容' }]);
@@ -100,7 +100,7 @@ function ArticleEditor({ articleId }: Props) {
     setError(''); setNotice(uniqueErrors.length ? `检测发现 ${uniqueErrors.length} 项需要处理` : '检测通过，未发现阻断问题');
   };
   const insertMarkdown = (value: string) => {
-    const area = bodyRef.current, start = selectionRef.current?.start ?? form.content_markdown.length;
+    const area = bodyRef.current, start = area?.closest('details')?.open ? selectionRef.current?.start ?? form.content_markdown.length : form.content_markdown.length;
     const before = form.content_markdown.slice(0, start), after = form.content_markdown.slice(start);
     const prefix = before && !before.endsWith('\n\n') ? before.endsWith('\n') ? '\n' : '\n\n' : '';
     const suffix = after && !after.startsWith('\n\n') ? after.startsWith('\n') ? '\n' : '\n\n' : '';
