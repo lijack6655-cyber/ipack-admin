@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import { prepareArticleUpload } from '../src/lib/articles/prepare-upload.ts';
+
+let closed = 0, dimensions = [5712, 4284], drawn = false;
+globalThis.createImageBitmap = async () => ({ width: dimensions[0], height: dimensions[1], close() { closed++; } });
+const canvas = { width: 0, height: 0, getContext: () => ({ drawImage() { drawn = true; } }), toBlob: callback => callback(new Blob(['optimized'], { type: 'image/webp' })) };
+globalThis.document = { createElement: () => canvas };
+const original = new File([new Uint8Array(9 * 1024 * 1024)], 'original.jpg', { type: 'image/jpeg' });
+const copy = await prepareArticleUpload(original);
+assert.equal(copy.type, 'image/webp');
+assert.equal(copy.name, 'original.webp');
+assert.deepEqual([canvas.width, canvas.height], [2000, 1500]);
+assert(drawn && copy.size < 3 * 1024 * 1024);
+assert.equal(original.size, 9 * 1024 * 1024);
+assert.equal(closed, 1);
+dimensions = [1000, 750];
+const small = new File(['small'], 'small.png', { type: 'image/png' });
+assert.equal(await prepareArticleUpload(small), small);
+assert.equal(closed, 2);
+await assert.rejects(prepareArticleUpload(new File(['bad'], 'bad.svg', { type: 'image/svg+xml' })), /JPG/);
+await assert.rejects(prepareArticleUpload(new File([new Uint8Array(21 * 1024 * 1024)], 'large.jpg', { type: 'image/jpeg' })), /20 MB/);
+canvas.toBlob = callback => callback(null);
+dimensions = [4000, 3000];
+await assert.rejects(prepareArticleUpload(original), /优化/);
+assert.equal(closed, 3);
+console.log('Article upload: size/type rejection, publication-copy resize, original preservation, bitmap cleanup and conversion failure PASS; browser encoding requires real upload verification.');

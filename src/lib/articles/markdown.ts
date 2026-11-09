@@ -94,8 +94,11 @@ export function renderMarkdown(markdown: string, signedUrls: Record<string, stri
         if (link && url) output.push(`<p class="article-cta"><a href="${escapeHtml(url)}" rel="noopener noreferrer">${inline(link[1], signedUrls)}</a></p>`);
       } else if (kind === 'video') {
         const rawUrl = content.join(' ').trim(), url = articleVideoEmbedUrl(rawUrl);
-        if (url?.includes('youtube-nocookie.com/embed/') || url?.includes('player.vimeo.com/video/')) output.push(`<figure class="article-video"><iframe src="${escapeHtml(url)}" title="Article video" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe></figure>`);
-        else if (url) output.push(`<figure class="article-video"><video controls preload="metadata" playsinline><source src="${escapeHtml(signedUrls[rawUrl] || url)}" type="video/mp4"></video></figure>`);
+        const parsedUrl = url?.startsWith('https://') ? new URL(url) : null;
+        const embed = parsedUrl && ((parsedUrl.hostname === 'www.youtube-nocookie.com' && /^\/embed\//.test(parsedUrl.pathname))
+          || (parsedUrl.hostname === 'player.vimeo.com' && /^\/video\/\d+/.test(parsedUrl.pathname)));
+        if (url && embed) output.push(`<figure class="article-video"><iframe src="${escapeHtml(url)}" title="Article video" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe></figure>`);
+        else if (url) output.push(`<figure class="article-video"><video controls preload="metadata" playsinline src="${escapeHtml(signedUrls[rawUrl] || url)}"></video></figure>`);
       } else if (content.length) output.push(`<aside class="article-tip">${content.map(line => `<p>${inline(line.trim(), signedUrls)}</p>`).join('')}</aside>`);
       continue;
     }

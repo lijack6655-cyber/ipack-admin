@@ -12,7 +12,7 @@ export function isSafeArticleImagePath(value: string): boolean {
 
 export function articleVideoEmbedUrl(value: string): string | null {
   if (/^[\u0000-\u0020]|[\\\u0000-\u001f<>"']/.test(value)) return null;
-  if (value.startsWith('/assets/')) return /\.(?:mp4|webm|ogg)(?:[?#]|$)/i.test(value) ? value : null;
+  if (value.startsWith('/assets/')) return isSafeArticleImagePath(value) && /\.(?:mp4|webm|ogg)(?:[?#]|$)/i.test(value) ? value : null;
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' || url.username || url.password) return null;

@@ -20,8 +20,13 @@ function parseDirective(lines: string[], start: number, kind: string) {
   const end = start + offset + 2, content = lines.slice(start + 1, end - 1);
   if (kind === 'video') return { end, block: content.length ? { type: 'video', src: content.join('\n').trim() } as ArticleBlock : null };
   if (kind === 'faq') {
-    const question = content.find(line => /^Q:\s*/i.test(line.trim()))?.replace(/^\s*Q:\s*/i, '') || '';
-    const answer = content.filter(line => !/^Q:\s*/i.test(line.trim())).join('\n').replace(/^\s*A:\s*/i, '').trim();
+    const questions = content.flatMap((line, index) => /^Q:\s*/i.test(line.trim()) ? [index] : []);
+    const answers = content.flatMap((line, index) => /^A:\s*/i.test(line.trim()) ? [index] : []);
+    if (questions.length !== 1 || answers.length !== 1 || questions[0] >= answers[0]
+      || content.slice(0, questions[0]).some(line => line.trim())
+      || content.slice(questions[0] + 1, answers[0]).some(line => line.trim())) return { end, block: null as ArticleBlock | null };
+    const question = content[questions[0]].replace(/^\s*Q:\s*/i, '');
+    const answer = content.slice(answers[0]).join('\n').replace(/^\s*A:\s*/i, '').trim();
     return { end, block: question && answer ? { type: 'faq', question, answer } as ArticleBlock : null };
   }
   if (kind === 'cta') {
@@ -57,7 +62,7 @@ export function parseArticleBlocks(markdown: string): ArticleBlock[] {
       const start = i;
       const ordered = /^\d/.test(listItem[1]), items: string[] = [];
       while (i < lines.length) { const item = lines[i].trim().match(/^([-*]|\d+\.)\s+(.+)$/); if (!item || /^\d/.test(item[1]) !== ordered) break; items.push(item[2]); i++; }
-      push({ type: 'list', ordered, items }, start); continue;
+      push({ type: 'list', ordered, items }, start, i); continue;
     }
     if (/^>\s?/.test(line)) {
       const start = i, quote: string[] = []; while (i < lines.length && /^>\s?/.test(lines[i].trim())) { quote.push(lines[i].trim().replace(/^>\s?/, '')); i++; }
