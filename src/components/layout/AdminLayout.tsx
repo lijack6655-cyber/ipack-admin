@@ -93,6 +93,7 @@ export default function AdminLayout({ children, user, onLogout }: AdminLayoutPro
   // 面包屑生成
   const breadcrumbs = (() => {
     const crumbs: { label: string; href?: string }[] = [{ label: '首页', href: '/dashboard' }];
+    if (router.pathname === '/admin/settings') crumbs.push({ label: '个人设置' });
     for (const item of visibleItems) {
       if (item.href && router.pathname === item.href && item.href !== '/dashboard') {
         crumbs.push({ label: item.label });

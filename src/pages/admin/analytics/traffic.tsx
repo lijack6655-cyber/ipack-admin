@@ -37,11 +37,11 @@ function TrafficAnalyticsPage() {
     <AdminLayout user={user} onLogout={handleLogout}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">数据分析</h1>
-        <p className="text-sm text-slate-500 mt-1">通过官方后台查看实时数据，不在本站保存 Google 账号或 API 密钥。</p>
+        <p className="text-sm text-slate-500 mt-1">查看网站访问、自然搜索表现与网站实际接收的询价记录。</p>
       </div>
 
       <div className="mb-6 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-        当前采用官方平台跳转方案，无需 Google Cloud。Google 数据以 GA4 与 GSC 官方后台为准，询盘以 Supabase 业务数据为准。
+        访问与搜索数据在 Google 官方后台查看，可能有处理延迟；询价以本站实际接收的记录为准。两类数据口径不同，请分别核查。
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -71,7 +71,7 @@ function TrafficAnalyticsPage() {
           <MessageSquareText className="w-8 h-8 flex-shrink-0" />
           <div>
             <h2 className="text-lg font-bold">真实询盘数据</h2>
-            <p className="text-sm mt-2 opacity-80">进入询盘管理，查看 Supabase 中实际提交的 RFQ 记录与跟进状态。</p>
+            <p className="text-sm mt-2 opacity-80">进入询价记录，查看网站实际接收的询价与跟进状态。</p>
           </div>
         </div>
         <ArrowRight className="w-5 h-5 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
