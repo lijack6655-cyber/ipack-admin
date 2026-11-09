@@ -1,4 +1,4 @@
-import { isSafeArticleImagePath } from './model.ts';
+import { articleVideoEmbedUrl, isSafeArticleImagePath } from './model.ts';
 
 export function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!));
@@ -14,6 +14,7 @@ function safeUrl(value: string, image = false): string | null {
   if (image) return null;
   try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : null; } catch { return null; }
 }
+
 
 const token = /(!?)\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)|\*\*(.+?)\*\*/g;
 function inline(value: string, signedUrls: Record<string, string>): string {
@@ -78,7 +79,7 @@ export function renderMarkdown(markdown: string, signedUrls: Record<string, stri
       else output.push(`<p>${escapeHtml(trimmed)}</p>`);
       i++; continue;
     }
-    const directive = trimmed.match(/^:::(tip|faq|cta)\s*$/i);
+    const directive = trimmed.match(/^:::(tip|faq|cta|video)\s*$/i);
     if (directive) {
       flush(); const kind = directive[1].toLowerCase(), content: string[] = []; i++;
       while (i < lines.length && lines[i].trim() !== ':::') content.push(lines[i++]);
@@ -91,6 +92,13 @@ export function renderMarkdown(markdown: string, signedUrls: Record<string, stri
       } else if (kind === 'cta') {
         const link = content.join(' ').trim().match(/^\[([^\]]+)\]\(([^)\s]+)\)$/), url = link && safeUrl(link[2]);
         if (link && url) output.push(`<p class="article-cta"><a href="${escapeHtml(url)}" rel="noopener noreferrer">${inline(link[1], signedUrls)}</a></p>`);
+      } else if (kind === 'video') {
+        const rawUrl = content.join(' ').trim(), url = articleVideoEmbedUrl(rawUrl);
+        const parsedUrl = url?.startsWith('https://') ? new URL(url) : null;
+        const embed = parsedUrl && ((parsedUrl.hostname === 'www.youtube-nocookie.com' && /^\/embed\//.test(parsedUrl.pathname))
+          || (parsedUrl.hostname === 'player.vimeo.com' && /^\/video\/\d+/.test(parsedUrl.pathname)));
+        if (url && embed) output.push(`<figure class="article-video"><iframe src="${escapeHtml(url)}" title="Article video" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe></figure>`);
+        else if (url) output.push(`<figure class="article-video"><video controls preload="metadata" playsinline src="${escapeHtml(signedUrls[rawUrl] || url)}"></video></figure>`);
       } else if (content.length) output.push(`<aside class="article-tip">${content.map(line => `<p>${inline(line.trim(), signedUrls)}</p>`).join('')}</aside>`);
       continue;
     }
